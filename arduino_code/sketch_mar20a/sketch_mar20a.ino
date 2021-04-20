@@ -38,17 +38,19 @@ void loop()
   if(intEncoder==1)
   Round++;
   car_position=Encoder(Round);
-  Turn(TCRT,car_position,Round);
+  Turn(TCRT,car_position);
   delay(1000);
+  if(car_position==5||car_position==7)
+  Brake();
  }
 
- void Turn(int Senser[],int The_Car_position,int EncoderForTrack){
+ void Turn(int Senser[],int The_Car_position){
   if(Senser[0]==0&&Senser[0]==Senser[1]==Senser[2]==Senser[3]==Senser[4]){
-    if(The_Car_position==1&&EncoderForTrack<=2)
-    SteeringServo.write(90);
-    else if(The_Car_position==1&&EncoderForTrack>2&&EncoderForTrack<=4||The_Car_position==2||The_Car_position==3)
-    SteeringServo.write(180);
-    else if(The_Car_position!=3)
+    if(The_Car_position==1||The_Car_position==6)
+    SteeringServo.write(45);
+    else if(The_Car_position==3||The_Car_position==5)
+    SteeringServo.write(315);
+    else// if(The_Car_position!=3)
     SteeringServo.write(0);
   }
   else if(Senser[0]==1||Senser[1]==1||Senser[2]==1||Senser[3]==1||Senser[4]==1){
@@ -73,14 +75,20 @@ void loop()
 
  int Encoder(int Round){
   int a=0;
-  if(Round>=1&&Round<=10)
+  if(Round>=1&&Round<3)
   a=1;
-  else if(Round>=10&&Round<=18)
+  else if(Round>=3&&Round<7)
   a=2;
-   else if(Round>=18&&Round<=30)
+   else if(Round>=7&&Round<9)
   a=3;
-  else if(Round>=30)
+  else if(Round>=9&&Round<16)
   a=4;
+  else if(Round>=16&&Round<18)
+  a=5;
+  else if(Round>=18&&Round<30)
+  a=6;
+  else if(Round>=30)
+  a=7;
   return a;
  }
 
