@@ -57,13 +57,26 @@ int car_position = 0;
 int Round = 0;
 double a = 0.5;
 
+boolean stopped = false;
 void loop() {
+#if _DEV_BLE_DEBUG
+  if (!bleSerial.connected()) {
+    propellerServo.writeMicroseconds(1000);
+    SteeringServo.write(90);
+    stopped = true;
+  }
+#endif
+  if (!stopped) {
+    _loop();
+  } else {
+    delay(1000);
+  }
+}
+
+void _loop() {
   int TCRT[4];
   int intEncoder = digitalRead(17);
-  int angle = val * 180 / 4095;
-  int v = analogRead(36);
-  val = (int)(val * a + v * (1 - a));
-  propellerServo.write(angle);
+  propellerServo.writeMicroseconds(1300);
   for (int n = 0; n < 5; n++) {
     TCRT[n] = digitalRead(ir_sensor_pins[n]);
     Serial.println(TCRT[n]);
