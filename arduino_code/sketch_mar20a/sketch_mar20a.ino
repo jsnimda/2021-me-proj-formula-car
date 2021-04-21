@@ -4,15 +4,15 @@
 //library: https://github.com/iot-bus/BLESerial
 
 BLESerial bleSerial;
-#define _log(x)       \
+#define _logf(x)       \
   bleSerial.print(x); \
   Serial.print(x);
-#define _logln(x)       \
+#define _log(x)       \
   bleSerial.println(x); \
   Serial.println(x);
 #else
-#define _log(x) Serial.print(x);
-#define _logln(x) Serial.println(x);
+#define _logf(x) Serial.print(x);
+#define _log(x) Serial.println(x);
 #endif
 
 // main
@@ -49,6 +49,9 @@ void setup() {
     Serial.println("waiting for ble terminal to connect...");
     delay(1000);
   }
+  _log("ESP32 ble terminal connected!");
+  _log("After one second I will start!");
+  delay(1000);
 #endif
 }
 
@@ -79,10 +82,12 @@ void _loop() {
   propellerServo.writeMicroseconds(1300);
   for (int n = 0; n < 5; n++) {
     TCRT[n] = digitalRead(ir_sensor_pins[n]);
-    Serial.println(TCRT[n]);
+    _log(TCRT[n]);
   }
   if (intEncoder == 1)
     Round++;
+  _logf("Round:");
+  _log(Round);
   car_position = Encoder(Round);
   Turn(TCRT, car_position);
   delay(1000);
@@ -91,6 +96,7 @@ void _loop() {
 }
 
 void Turn(int Senser[], int The_Car_position) {
+  if(The_Car_position == 3 || The_Car_position == 5)
   if (Senser[0] == 0 && Senser[0] == Senser[1] == Senser[2] == Senser[3] == Senser[4]) {
     if (The_Car_position == 1 || The_Car_position == 6)
       SteeringServo.write(45);
@@ -98,12 +104,12 @@ void Turn(int Senser[], int The_Car_position) {
       SteeringServo.write(315);
     else  // if(The_Car_position!=3)
       SteeringServo.write(0);
-  } else if (Senser[0] == 1 || Senser[1] == 1 || Senser[2] == 1 || Senser[3] == 1 || Senser[4] == 1) {
-    Track(Senser);
-  }
+  } //else if (Senser[0] == 1 || Senser[1] == 1 || Senser[2] == 1 || Senser[3] == 1 || Senser[4] == 1) {
+    //Track(Senser);
+    //}
 }
 
-void Track(int TrackSenser[]) {
+/*void Track(int TrackSenser[]) {
   int Trackangle = 20;
   if (TrackSenser[0] == 1 && TrackSenser[0] == TrackSenser[1] == TrackSenser[2] == TrackSenser[3] == TrackSenser[4])
     SteeringServo.write(45);
@@ -115,7 +121,7 @@ void Track(int TrackSenser[]) {
     SteeringServo.write(360 - Trackangle);
   else if (TrackSenser[3] == 1 && TrackSenser[2] == 1)
     SteeringServo.write(360 - Trackangle - 10);
-}
+}*/
 
 int Encoder(int Round) {
   int a = 0;
