@@ -4,16 +4,18 @@
 //library: https://github.com/iot-bus/BLESerial
 
 BLESerial bleSerial;
-#define _log(x)      \
+#define _log(x)       \
   bleSerial.print(x); \
   Serial.print(x);
-#define _logln(x)        \
+#define _logln(x)       \
   bleSerial.println(x); \
   Serial.println(x);
 #else
 #define _log(x) Serial.print(x);
 #define _logln(x) Serial.println(x);
 #endif
+
+// main
 
 #include <ESP32Servo.h>
 
@@ -22,30 +24,32 @@ Servo SteeringServo;
 Servo LeftBrakeServo;
 Servo RightBrakeServo;
 
+int ir_sensor_pins[] = {13, 12, 14, 27, 25};
+
 void setup() {
   Serial.begin(115200);
-  propellerServo.attach(2);
-  propellerServo.write(0);
-  SteeringServo.attach(34);
-  LeftBrakeServo.attach(36);
-  RightBrakeServo.attach(39);
-  LeftBrakeServo.write(0);
-  RightBrakeServo.write(0);
-  pinMode(12, INPUT);
+  propellerServo.attach(16, 1000, 2000);
+  propellerServo.writeMicroseconds(1000);
+  SteeringServo.attach(17, 500, 2500);
+  SteeringServo.write(90);
+  // LeftBrakeServo.attach(36);
+  // RightBrakeServo.attach(39);
+  // LeftBrakeServo.write(0);
+  // RightBrakeServo.write(0);
+  pinMode(26, INPUT);
   pinMode(13, INPUT);
+  pinMode(12, INPUT);
   pinMode(14, INPUT);
-  pinMode(15, INPUT);
-  pinMode(16, INPUT);
-  pinMode(17, INPUT);
+  pinMode(27, INPUT);
+  pinMode(25, INPUT);
 
 #if _DEV_BLE_DEBUG
   bleSerial.begin("ESP32-ble-js");
-  while(!bleSerial.connected()) {
+  while (!bleSerial.connected()) {
     Serial.println("waiting for ble terminal to connect...");
     delay(1000);
   }
 #endif
-
 }
 
 int val = 0;
@@ -60,8 +64,8 @@ void loop() {
   int v = analogRead(36);
   val = (int)(val * a + v * (1 - a));
   propellerServo.write(angle);
-  for (int n = 0; n < 4; n++) {
-    TCRT[n] = digitalRead(n + 2);
+  for (int n = 0; n < 5; n++) {
+    TCRT[n] = digitalRead(ir_sensor_pins[n]);
     Serial.println(TCRT[n]);
   }
   if (intEncoder == 1)
