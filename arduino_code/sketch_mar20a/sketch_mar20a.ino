@@ -103,7 +103,8 @@ int val = 0;
 int car_position = 0;
 int Round = 0;
 double a = 0.5;
-
+int CheckRound=0;
+int ReturnRound=0;
 void loop() {
 #if _DEV_BLE_DEBUG
   checkBle();
@@ -115,12 +116,25 @@ void loop() {
   }
 }
 
-void checkEncoder() {
+// void checkEncoder() {
+//   static int last = 1;
+//   int intEncoder = digitalRead(26);
+//   if (last != 0 && intEncoder == 0)
+//     Round++;
+//   last = intEncoder;
+// }
+
+int checkEncoder() {
   static int last = 1;
   int intEncoder = digitalRead(26);
   if (last != 0 && intEncoder == 0)
-    Round++;
+    CheckRound++;
+  if(CheckRound==12){
+    ReturnRound++;   
+    CheckRound=0; 
+  }
   last = intEncoder;
+  return ReturnRound;
 }
 
 void _loop() {
@@ -130,6 +144,7 @@ void _loop() {
     TCRT[n] = digitalRead(ir_sensor_pins[n]);
     //_log(TCRT[n]);
   }
+  Round = checkEncoder();
   _logf("Round:");
   _log(Round);
   car_position = Encoder(Round);
