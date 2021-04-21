@@ -17,9 +17,12 @@ BLESerial bleSerial;
   Serial.println(x);
 
 void hard_restart() {
-  esp_task_wdt_init(1,true);
-  esp_task_wdt_add(NULL);
-  while(true);
+  // esp_task_wdt_init(1, true);
+  // esp_task_wdt_add(NULL);
+  // while (true)
+  //   ;
+  pinMode(18, OUTPUT);
+  digitalWrite(18, LOW);
 }
 
 void checkBle() {
@@ -55,11 +58,20 @@ Servo SteeringServo;
 Servo LeftBrakeServo;
 Servo RightBrakeServo;
 
-int ir_sensor_pins[] = {13, 12, 14, 27, 25};
+int ir_sensor_pins[] = {13, 39, 14, 27, 25};
 
 void safetyStop() {
   propellerServo.writeMicroseconds(1000);
-  SteeringServo.write(90);
+  SteeringServo.writeMicroseconds(900);
+}
+
+void vTaskEncoder(void* pvParameters) {
+  portTickType xLastWakeTime;
+  const portTickType xFrequency = pdMS_TO_TICKS(20);
+  for (;;) {
+    checkEncoder();
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
 }
 
 void setup() {
@@ -67,17 +79,19 @@ void setup() {
   propellerServo.attach(16, 1000, 2000);
   propellerServo.writeMicroseconds(1000);
   SteeringServo.attach(17, 500, 2500);
-  SteeringServo.write(90);
+  SteeringServo.writeMicroseconds(900);
   // LeftBrakeServo.attach(36);
   // RightBrakeServo.attach(39);
   // LeftBrakeServo.write(0);
   // RightBrakeServo.write(0);
   pinMode(26, INPUT);
   pinMode(13, INPUT);
-  pinMode(12, INPUT);
+  pinMode(39, INPUT);
   pinMode(14, INPUT);
   pinMode(27, INPUT);
   pinMode(25, INPUT);
+  
+  xTaskCreate(vTaskEncoder, "vTaskEncoder", 1000, NULL, 1, NULL);
 
 #if _DEV_BLE_DEBUG
   stopped = true;  // use ble to start
@@ -101,37 +115,46 @@ void loop() {
   }
 }
 
+void checkEncoder() {
+  static int last = 1;
+  int intEncoder = digitalRead(26);
+  if (last != 0 && intEncoder == 0)
+    Round++;
+  last = intEncoder;
+}
+
 void _loop() {
-  int TCRT[4];
-  int intEncoder = digitalRead(17);
-  propellerServo.writeMicroseconds(1300);
+  int TCRT[5];
+  propellerServo.writeMicroseconds(1270);
   for (int n = 0; n < 5; n++) {
     TCRT[n] = digitalRead(ir_sensor_pins[n]);
-    _log(TCRT[n]);
+    //_log(TCRT[n]);
   }
-  if (intEncoder == 1)
-    Round++;
   _logf("Round:");
   _log(Round);
   car_position = Encoder(Round);
+  _logf("car_position:");
+  _log(car_position);
   Turn(TCRT, car_position);
-  delay(1000);
+  delay(100);
   if (car_position == 5 || car_position == 7)
     Brake();
 }
 
-void Turn(int Senser[], int The_Car_position) {
-  if (The_Car_position == 3 || The_Car_position == 5)
-    if (Senser[0] == 0 && Senser[0] == Senser[1] == Senser[2] == Senser[3] == Senser[4]) {
-      if (The_Car_position == 1 || The_Car_position == 6)
-        SteeringServo.write(45);
-      else if (The_Car_position == 3 || The_Car_position == 5)
-        SteeringServo.write(315);
-      else  // if(The_Car_position!=3)
-        SteeringServo.write(0);
-    }  //else if (Senser[0] == 1 || Senser[1] == 1 || Senser[2] == 1 || Senser[3] == 1 || Senser[4] == 1) {
-       //Track(Senser);
-       //}
+void Turn(int Senser[5], int The_Car_position) {
+  /*for (int n = 0; n < 5; n++){
+    _log(Senser[n]);
+    }*/
+  if (Senser[1] == 0 && Senser[2] == 0 && Senser[3] == 0 ) {
+    if (The_Car_position == 1 || The_Car_position == 6)
+      SteeringServo.writeMicroseconds(1400);
+    else if (The_Car_position == 3 || The_Car_position == 5)
+      SteeringServo.writeMicroseconds(500);
+    else  // if(The_Car_position!=3)
+      SteeringServo.writeMicroseconds(900);
+  }  //else if (Senser[0] == 1 || Senser[1] == 1 || Senser[2] == 1 || Senser[3] == 1 || Senser[4] == 1) {
+     //Track(Senser);
+     //}
 }
 
 /*void Track(int TrackSenser[]) {
@@ -150,13 +173,13 @@ void Turn(int Senser[], int The_Car_position) {
 
 int Encoder(int Round) {
   int a = 0;
-  if (Round >= 1 && Round < 3)
+  if (Round >= 1 && Round <10)
     a = 1;
-  else if (Round >= 3 && Round < 7)
+  else if (Round >= 10 && Round < 11)
     a = 2;
-  else if (Round >= 7 && Round < 9)
+  else if (Round >= 11 && Round < 12)
     a = 3;
-  else if (Round >= 9 && Round < 16)
+  else if (Round >= 12 && Round < 16)
     a = 4;
   else if (Round >= 16 && Round < 18)
     a = 5;
