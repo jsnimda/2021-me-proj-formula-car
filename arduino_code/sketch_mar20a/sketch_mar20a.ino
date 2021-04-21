@@ -1,3 +1,20 @@
+#define _DEV_BLE_DEBUG 1
+#if _DEV_BLE_DEBUG
+#include "BLESerial.h"
+//library: https://github.com/iot-bus/BLESerial
+
+BLESerial bleSerial;
+#define _log(x)      \
+  bleSerial.print(x); \
+  Serial.print(x);
+#define _logln(x)        \
+  bleSerial.println(x); \
+  Serial.println(x);
+#else
+#define _log(x) Serial.print(x);
+#define _logln(x) Serial.println(x);
+#endif
+
 #include <ESP32Servo.h>
 
 Servo propellerServo;
@@ -20,6 +37,15 @@ void setup() {
   pinMode(15, INPUT);
   pinMode(16, INPUT);
   pinMode(17, INPUT);
+
+#if _DEV_BLE_DEBUG
+  bleSerial.begin("ESP32-ble-js");
+  while(!bleSerial.connected()) {
+    Serial.println("waiting for ble terminal to connect...");
+    delay(1000);
+  }
+#endif
+
 }
 
 int val = 0;
