@@ -153,7 +153,7 @@ void Turn(int Senser[5], int The_Car_position) {
     else  // if(The_Car_position!=3)
       SteeringServo.writeMicroseconds(900);
   }  else if (Senser[0] == 1 || Senser[1] == 1 || Senser[2] == 1 || Senser[3] == 1 || Senser[4] == 1) {
-    if(The_Car_position >= 4 && The_Car_position <=5 || The_Car_position > 6 && The_Car_position <= 7)
+    if(The_Car_position >= 4 && The_Car_position <=5 || The_Car_position > 6 && The_Car_position <= 9)
      Track(Senser);
      }
 }
@@ -174,23 +174,23 @@ void Track(int TrackSenser[]) {
 
 int Encoder(int Round) {
   int a = 0;
-  if (Round >= 1 && Round <3)
+  if (Round >= 1 && Round <3)//First Left Turn
     a = 1;
-  else if (Round >= 3 && Round < 4)
+  else if (Round >= 3 && Round < 4)//The area Between first left Turn & First Right Turn
     a = 2;
-  else if (Round >= 4 && Round < 8)
+  else if (Round >= 5 && Round < 6)//First Right Turn
     a = 3;
-  else if (Round >= 8 && Round < 10)
+  else if (Round >= 6 && Round < 10)//First Track Line
     a = 4;
-  else if (Round >= 10 && Round < 12)
+  else if (Round >= 10 && Round < 12)//Second Right Turn
     a = 5;
-  else if (Round >= 12 && Round < 14)
+  else if (Round >= 12 && Round < 14)//Second Track line & Second Left Turn
     a = 6;
-  else if (Round >= 14&& Round < 16)
+  else if (Round >= 14&& Round < 15)//Tracking Second line
     a = 7;
-   else if (Round >= 16&& Round < 20)//First Stop
+   else if (Round >= 15&& Round < 20)//First Stop & Left Turn to Second Line
     a = 8;
-   else if (Round >= 20&& Round < 26)
+   else if (Round >= 20&& Round < 26)//Tracking the Second To the Final area
     a = 9;
    else if (Round >=26)//Final Stop
     a = 10;
@@ -198,12 +198,9 @@ int Encoder(int Round) {
 }
 
 void Brake() {
-  LeftBrakeServo.write(90);
-  RightBrakeServo.write(90);
+  propellerServo.writeMicroseconds(0);
   delay(1000);
   delay(1000);
   delay(1000);
   delay(1000);
-  LeftBrakeServo.write(0);
-  RightBrakeServo.write(0);
 }
