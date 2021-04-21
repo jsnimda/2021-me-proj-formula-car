@@ -1,15 +1,46 @@
+
+boolean stopped = false;
+
 #define _DEV_BLE_DEBUG 1
 #if _DEV_BLE_DEBUG
 #include "BLESerial.h"
+#include "esp_task_wdt.h"
+
 //library: https://github.com/iot-bus/BLESerial
 
 BLESerial bleSerial;
-#define _logf(x)       \
+#define _logf(x)      \
   bleSerial.print(x); \
   Serial.print(x);
-#define _log(x)       \
+#define _log(x)         \
   bleSerial.println(x); \
   Serial.println(x);
+
+void hard_restart() {
+  esp_task_wdt_init(1,true);
+  esp_task_wdt_add(NULL);
+  while(true);
+}
+
+void checkBle() {
+  if (!bleSerial.connected()) {
+    safetyStop();
+    stopped = true;
+    hard_restart();
+  }
+}
+void waitForBle() {
+  stopped = true;
+  bleSerial.begin("ESP32-ble-js");
+  while (!bleSerial.connected()) {
+    Serial.println("waiting for ble terminal to connect...");
+    delay(1000);
+  }
+  _log("ESP32 ble terminal connected!");
+  _log("After one second I will start!");
+  delay(1000);
+  stopped = false;
+}
 #else
 #define _logf(x) Serial.print(x);
 #define _log(x) Serial.println(x);
@@ -25,6 +56,11 @@ Servo LeftBrakeServo;
 Servo RightBrakeServo;
 
 int ir_sensor_pins[] = {13, 12, 14, 27, 25};
+
+void safetyStop() {
+  propellerServo.writeMicroseconds(1000);
+  SteeringServo.write(90);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -44,14 +80,8 @@ void setup() {
   pinMode(25, INPUT);
 
 #if _DEV_BLE_DEBUG
-  bleSerial.begin("ESP32-ble-js");
-  while (!bleSerial.connected()) {
-    Serial.println("waiting for ble terminal to connect...");
-    delay(1000);
-  }
-  _log("ESP32 ble terminal connected!");
-  _log("After one second I will start!");
-  delay(1000);
+  stopped = true;  // use ble to start
+  waitForBle();
 #endif
 }
 
@@ -60,14 +90,9 @@ int car_position = 0;
 int Round = 0;
 double a = 0.5;
 
-boolean stopped = false;
 void loop() {
 #if _DEV_BLE_DEBUG
-  if (!bleSerial.connected()) {
-    propellerServo.writeMicroseconds(1000);
-    SteeringServo.write(90);
-    stopped = true;
-  }
+  checkBle();
 #endif
   if (!stopped) {
     _loop();
@@ -96,17 +121,17 @@ void _loop() {
 }
 
 void Turn(int Senser[], int The_Car_position) {
-  if(The_Car_position == 3 || The_Car_position == 5)
-  if (Senser[0] == 0 && Senser[0] == Senser[1] == Senser[2] == Senser[3] == Senser[4]) {
-    if (The_Car_position == 1 || The_Car_position == 6)
-      SteeringServo.write(45);
-    else if (The_Car_position == 3 || The_Car_position == 5)
-      SteeringServo.write(315);
-    else  // if(The_Car_position!=3)
-      SteeringServo.write(0);
-  } //else if (Senser[0] == 1 || Senser[1] == 1 || Senser[2] == 1 || Senser[3] == 1 || Senser[4] == 1) {
-    //Track(Senser);
-    //}
+  if (The_Car_position == 3 || The_Car_position == 5)
+    if (Senser[0] == 0 && Senser[0] == Senser[1] == Senser[2] == Senser[3] == Senser[4]) {
+      if (The_Car_position == 1 || The_Car_position == 6)
+        SteeringServo.write(45);
+      else if (The_Car_position == 3 || The_Car_position == 5)
+        SteeringServo.write(315);
+      else  // if(The_Car_position!=3)
+        SteeringServo.write(0);
+    }  //else if (Senser[0] == 1 || Senser[1] == 1 || Senser[2] == 1 || Senser[3] == 1 || Senser[4] == 1) {
+       //Track(Senser);
+       //}
 }
 
 /*void Track(int TrackSenser[]) {
