@@ -24,6 +24,9 @@ boolean running = false;
   bleSerial.println(__VA_ARGS__); \
   Serial.println(__VA_ARGS__);
 
+// #define _logf(...) (void)0
+// #define _log(...) (void)0
+
 BLESerial bleSerial;
 void waitForBle() {
   running = false;
@@ -185,6 +188,7 @@ class EnterLineFollowManager {
 enum Movement {
   Straight,
   Left,
+  Left_ms_1,
   Right,
   Stop,
   Brake,
@@ -205,7 +209,8 @@ double segments[] = {
     25.934,                          //Right
     42.1 - 10,                          //Straight
     45.305 - 15,                          //EnterLineFollow_1
-    23.699 + 3,                          //Left
+    // 23.699 - 1,                          //Left
+    0,                          //Left ms
     10,                          //Straight
     38.401 + 15,                          //EnterLineFollow_2
     0,                          //Brake_And_Go
@@ -220,7 +225,8 @@ Movement segMovements[] = {
   Right, 
   Straight, 
   EnterLineFollow_1, 
-  Left, 
+  // Left, 
+  Left_ms_1, 
   Straight, 
   EnterLineFollow_2, 
   Brake_And_Go, 
@@ -234,6 +240,13 @@ Movement segMovements[] = {
 
 int currentSegmentIndex = 0;
 double seg_offset = 0;
+
+void gotoNextSegment() {
+  seg_offset = distanceTranvelled_cm;
+  currentSegmentIndex++;
+  handleMovement();
+}
+
 void handleRouteTest() {
   if (currentSegmentIndex >= min(_len(segments), _len(segMovements))) {
     return;
@@ -245,8 +258,8 @@ void handleRouteTest() {
   }
 }
 void handleMovement() {
-  _logf("next movement: ");
-  _log(currentSegmentIndex);
+  // _logf("next movement: ");
+  // _log(currentSegmentIndex);
   if (currentSegmentIndex >= min(_len(segments), _len(segMovements))) {
     stopServos();
     return;
@@ -257,6 +270,11 @@ void handleMovement() {
       break;
     case Left:
       steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
+      break;
+    case Left_ms_1:
+      steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
+      delay(475);
+      gotoNextSegment();
       break;
     case Right:
       steerServo.writeMicroseconds(steer_center_us + 500);  // 1430, +-500 = 46.5 deg
@@ -283,7 +301,7 @@ void handleMovement() {
       running = false;
       break;
     case Left_until_middle:
-      _log("Left_until_middle");
+      // _log("Left_until_middle");
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(200);
       while (ir_array_values[2] != 1) {
@@ -356,11 +374,11 @@ int dirLine() {
 }
 
 void doEnterLineFollow_1(double travelDis_cm) {
-  _log("doEnterLineFollow_1");
+  // _log("doEnterLineFollow_1");
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
-      _log("hasLine");
+      // _log("hasLine");
       delay(50);
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(475);
@@ -370,9 +388,7 @@ void doEnterLineFollow_1(double travelDis_cm) {
         delay(1);
       }
 
-      seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
-      currentSegmentIndex++;
-      handleMovement();
+      gotoNextSegment();
 
       // doBrake();
       // running = false;
@@ -383,11 +399,11 @@ void doEnterLineFollow_1(double travelDis_cm) {
 }
 
 void doEnterLineFollow_2(double travelDis_cm) {
-  _log("doEnterLineFollow_2");
+  // _log("doEnterLineFollow_2");
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
-      _log("hasLine");
+      // _log("hasLine");
       steerServo.writeMicroseconds(steer_center_us + 500);
       delay(550);
       int init_pos = distanceTranvelled_cm;
@@ -396,9 +412,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
         delay(1);
       }
 
-      seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
-      currentSegmentIndex++;
-      handleMovement();
+      gotoNextSegment();
 
       // doBrake();
       // running = false;
@@ -409,7 +423,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
 }
 
 void doEnterLineFollow_3() {  // simpleLineFollow
-  _log("doEnterLineFollow_3");
+  // _log("doEnterLineFollow_3");
   double target = distanceTranvelled_cm + 80;
   steerServo.writeMicroseconds(steer_center_us);
   while (running && distanceTranvelled_cm < target) {
