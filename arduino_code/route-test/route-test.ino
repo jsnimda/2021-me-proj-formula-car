@@ -266,9 +266,10 @@ void handleMovement() {
         delay(1);
       }
       steerServo.writeMicroseconds(steer_center_us);
-      seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
-      currentSegmentIndex++;
-      handleMovement();
+      // seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
+      // currentSegmentIndex++;
+      // handleMovement();
+      doEnterLineFollow_3();
       break;
     case EnterLineFollow_1:
       doEnterLineFollow_1(segments[currentSegmentIndex]);
@@ -310,11 +311,19 @@ int countLine() {
   return c;
 }
 
+int lastDir = 0;
+
 int dirLine() {
-  if (countLine() != 1) return 0;
-  if (ir_array_values[0] == 1 || ir_array_values[1] == 1) return -1;
-  if (ir_array_values[3] == 1 || ir_array_values[4] == 1) return 1;
-  return 0;
+  int c = countLine();
+  if (c == 0) return lastDir;
+  if (c != 1) return 0;
+  if (ir_array_values[0] == 1 || ir_array_values[1] == 1) {
+    lastDir = -1;
+  return lastDir;
+    }
+  if (ir_array_values[3] == 1 || ir_array_values[4] == 1) {lastDir = 1; return lastDir;}
+  lastDir = 0;
+  return lastDir;
 }
 
 void doEnterLineFollow_1(double travelDis_cm) {
@@ -374,11 +383,11 @@ void doEnterLineFollow_3() { // simpleLineFollow
   _log("doEnterLineFollow_3");
   double target = distanceTranvelled_cm + 130;
   steerServo.writeMicroseconds(steer_center_us);
-  while (running) {
+  while (running && distanceTranvelled_cm < target) {
     if (distanceTranvelled_cm >= target) {
-      seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
-      currentSegmentIndex++;
-      handleMovement();
+      // seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
+      // currentSegmentIndex++;
+      // handleMovement();
 
       doBrake();
       running = false;
@@ -386,8 +395,8 @@ void doEnterLineFollow_3() { // simpleLineFollow
     }
     int dd = dirLine();
     if (dd == 0) steerServo.writeMicroseconds(steer_center_us);
-    if (dd == -1) steerServo.writeMicroseconds(steer_center_us + 200);
-    if (dd == 1) steerServo.writeMicroseconds(steer_center_us - 200);
+    if (dd == -1) steerServo.writeMicroseconds(steer_center_us - 200);
+    if (dd == 1) steerServo.writeMicroseconds(steer_center_us + 200);
 
     delay(1);
   }
