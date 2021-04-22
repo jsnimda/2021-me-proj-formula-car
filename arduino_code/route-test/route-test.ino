@@ -185,8 +185,8 @@ enum Movement {
 
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
-double segments[] = {30, 25.934, 42.1, 60.305, 20.699, 15.401, 0, 110, 0};
-Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, EnterLineFollow_2, Brake_And_Go, Right, Brake};
+double segments[] = {30, 25.934, 42.1 - 7, 45.305, 25.699, 10, 20.401, 0, 110, 10, 25, 0};
+Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, Straight, EnterLineFollow_2, Brake_And_Go, Right, Straight, Left, Brake};
 
 int currentSegmentIndex = 0;
 double seg_offset = 0;
@@ -226,7 +226,7 @@ void handleMovement() {
     case Brake_And_Go:
       doBrake();
       seg_offset = distanceTranvelled_cm;
-      restartPropeller();
+      if (running) restartPropeller();
       break;
     case UTurn:
       steerServo.writeMicroseconds(steer_center_us + 500);  // 1430, +-500 = 46.5 deg
@@ -269,8 +269,9 @@ void doEnterLineFollow_1(double travelDis_cm) {
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
+      _log("hasLine");
       steerServo.writeMicroseconds(steer_center_us - 500);
-      delay(500);
+      delay(450);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
       while (distanceTranvelled_cm - init_pos < travelDis_cm) {
@@ -290,11 +291,13 @@ void doEnterLineFollow_1(double travelDis_cm) {
 }
 
 void doEnterLineFollow_2(double travelDis_cm) {
+  _log("doEnterLineFollow_2");
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
-      steerServo.writeMicroseconds(steer_center_us + 250);
-      delay(600);
+      _log("hasLine");
+      steerServo.writeMicroseconds(steer_center_us + 500);
+      delay(500);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
       while (distanceTranvelled_cm - init_pos < travelDis_cm) {
@@ -314,10 +317,12 @@ void doEnterLineFollow_2(double travelDis_cm) {
 }
 
 void doEnterLineFollow_3(double travelDis_cm) {
+  _log("doEnterLineFollow_3");
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
-      steerServo.writeMicroseconds(steer_center_us + 250);
+      _log("hasLine");
+      steerServo.writeMicroseconds(steer_center_us - 500);
       delay(600);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
@@ -394,9 +399,10 @@ void doBrake() {
 // }
 
 void restartPropeller() {
-  propellerServo.writeMicroseconds(1350);
+  if (!running) return;
+  propellerServo.writeMicroseconds(1400);
   delay(300);
-  propellerServo.writeMicroseconds(1268);
+  propellerServo.writeMicroseconds(1270);
 }
 
 void start() {
