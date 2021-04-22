@@ -160,7 +160,7 @@ void vTaskIrArray(void* pvParameters) {
 }
 
 // ============
-// Line Follow Manager
+// Route-test
 // ============
 
 enum EnterDirection {
@@ -169,44 +169,21 @@ enum EnterDirection {
 };
 class EnterLineFollowManager {
 };
-boolean hasLine() {
-  for (int i = 0; i < ir_array_count; i++) {
-    if (ir_array_values[i] == 1) {
-      return true;
-    }
-  }
-  return false;
-}
-void doEnterLineFollow(int direction, double travelDis_cm) {
-  while (running) {
-    if (hasLine()) {
-      steerServo.writeMicroseconds(steer_center_us + direction);
-      delay(1000);
-      doBrake();
-      running = false;
-    }
-    delay(1);
-  }
-}
-
-// ============
-// Route-test
-// ============
-
 enum Movement {
   Straight,
   Left,
   Right,
   Stop,
   Brake,
+  Brake_And_Stop,
   EnterLineFollow_left,
   EnterLineFollow_right,
 };
 
-// double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699, 37.417, 26.452, 73.401};
+// double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
-double segments[] = {30, 23.934, 32.1, 10.989, 70.305, 10.699, 37.417, 26.452, 73.401};
-Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_left, Brake};
+double segments[] =       {30,      25.934,   42.1,               30.305, 13.699,   63.401};
+Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_left, Left, EnterLineFollow_right, Brake};
 
 int currentSegmentIndex = 0;
 double seg_offset = 0;
@@ -221,6 +198,8 @@ void handleRouteTest() {
   }
 }
 void handleMovement() {
+  _logf("next movement: ");
+  _log(currentSegmentIndex);
   if (currentSegmentIndex >= min(_len(segments), _len(segMovements))) {
     stopServos();
     return;
@@ -241,6 +220,9 @@ void handleMovement() {
     case Brake:
       doBrake();
       break;
+    case Brake_And_Stop:
+      doBrake();
+      running = false;
     case EnterLineFollow_left:
       doEnterLineFollow(EnterDirection::EnterLeft, segments[currentSegmentIndex]);
       break;
@@ -253,6 +235,42 @@ void stopServos() {
   propellerServo.writeMicroseconds(1000);
   steerServo.writeMicroseconds(1430);  // 1430, +-500 = 46.5 deg
   brakeServo.writeMicroseconds(1500);
+}
+
+// ============
+// Line Follow Manager
+// ============
+
+boolean hasLine() {
+  for (int i = 0; i < ir_array_count; i++) {
+    if (ir_array_values[i] == 1) {
+      return true;
+    }
+  }
+  return false;
+}
+void doEnterLineFollow(int direction, double travelDis_cm) {
+  steerServo.writeMicroseconds(steer_center_us);
+  while (running) {
+    if (hasLine()) {
+      steerServo.writeMicroseconds(steer_center_us + direction);
+      delay(1000);
+      int init_pos = distanceTranvelled_cm;
+      steerServo.writeMicroseconds(steer_center_us);
+      while (distanceTranvelled_cm - init_pos < travelDis_cm) {
+        delay(1);
+      }
+
+      seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
+      currentSegmentIndex++;
+      handleMovement();
+
+      // doBrake();
+      // running = false;
+      return;
+    }
+    delay(1);
+  }
 }
 
 // ============
@@ -298,7 +316,7 @@ void setup() {
 void doBrake() {
   //ref stopServos
   propellerServo.writeMicroseconds(1000);
-  brakeServo.writeMicroseconds(1200);
+  brakeServo.writeMicroseconds(1150);
   delay(3000);
   stopServos();
 }
@@ -311,9 +329,9 @@ void doBrake() {
 // }
 
 void start() {
-  propellerServo.writeMicroseconds(1270);
-  delay(200);
-  propellerServo.writeMicroseconds(1250);
+  propellerServo.writeMicroseconds(1275);
+  delay(300);
+  propellerServo.writeMicroseconds(1248);
   encoderCount = 0;
   distanceTranvelled_cm = 0;
 }
