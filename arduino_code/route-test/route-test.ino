@@ -73,10 +73,11 @@ void vTaskCheckBle(void* pvParameters) {
 const int ir_array_count = 5;
 // int PIN_ir_array[] = {13, 39, 14, 27, 25};
 int PIN_ir_array[] = {25, 27, 14, 39, 13};
+int ir_array_values_last[ir_array_count];
 int ir_array_values[ir_array_count];
 
 // ============
-// Encoder
+// Encoder, IR Arrays
 // ============
 
 int encoderCount = 0;
@@ -85,12 +86,15 @@ double distanceTranvelled_cm = 0;
 double wheelDiameter_cm = 6.25;
 int countPerRevolution = 12;
 
+
+// sensors
 // add this line in setup():
 //    xTaskCreate(vTaskEncoder, "vTaskEncoder", 1000, NULL, 1, NULL);
 void vTaskEncoder(void* pvParameters) {
   int last = 1;
   unsigned long long lastTime = 0;
   for (;;) {
+    // ble
     if (running) {
       if (!bleSerial.connected()) {
         running = false;
@@ -99,6 +103,7 @@ void vTaskEncoder(void* pvParameters) {
       }
     }
 
+    // encoder
     int current = digitalRead(PIN_encoder);
     if (current != last) {
       encoderCount++;
@@ -109,15 +114,71 @@ void vTaskEncoder(void* pvParameters) {
     }
     last = current;
 
+    // ir array
+    for (int i = 0; i < ir_array_count; i++) {
+      ir_array_values_last[i] = ir_array_values[i];
+    }
     for (int i = 0; i < ir_array_count; i++) {
       ir_array_values[i] = digitalRead(PIN_ir_array[i]);
     }
+    analyzeIR();
 
     delay(1);
   }
 }
 void updateEncoderDistance() {
   distanceTranvelled_cm = encoderCount * wheelDiameter_cm * PI / countPerRevolution;
+}
+
+// ir
+
+/*
+find line, line is 1 to 2 ir thick: -2, -1, 0, 1, 2
+is not line: -30  (more than 1 to 2 ir thick)
+line left from left: -20
+line left from right: 20
+*/
+int where_is_line_last = -30;
+int where_is_line = -30;
+
+void setWhere(int where) {
+
+}
+
+void analyzeIR() {
+  
+}
+
+int countLine() {
+  return countLine(int[] ir_array_values);
+}
+
+int countLine(int[] ir) {
+  int c = 0;
+  for (int i = 0; i < ir_array_count; i++) {
+    if (ir[i] == 1) {
+      c++;
+    }
+  }
+  return c;
+}
+
+int lastDir = 0;
+
+int dirLine() {
+  int c = countLine();
+  if (c == 0) return lastDir;
+  if (c != 1) return 0;
+  if (ir_array_values[0] == 1 || ir_array_values[1] == 1) {
+    lastDir = -1;
+    return lastDir;
+  }
+  if (ir_array_values[3] == 1 || ir_array_values[4] == 1) {
+    lastDir = 1;
+    return lastDir;
+  }
+  lastDir = 0;
+  return lastDir;
 }
 
 // ============
@@ -128,25 +189,25 @@ void updateEncoderDistance() {
 
 // add this line in setup():
 //    xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
-void vTaskStatusLogger(void* pvParameters) {
-  for (;;) {
-    if (running) {
-      // _logf("ir array:");
-      // for (int i = 0; i < ir_array_count; i++) {
-      //   _logf(" ");
-      //   _logf(ir_array_values[i]);
-      // }
-      // _log();
+// void vTaskStatusLogger(void* pvParameters) {
+//   for (;;) {
+//     if (running) {
+//       // _logf("ir array:");
+//       // for (int i = 0; i < ir_array_count; i++) {
+//       //   _logf(" ");
+//       //   _logf(ir_array_values[i]);
+//       // }
+//       // _log();
 
-      // _logf("count: ");
-      // _log(encoderCount);
+//       // _logf("count: ");
+//       // _log(encoderCount);
 
-      // _logf("dis: ");
-      // _log(distanceTranvelled_cm, 2);
-    }
-    delay(150);
-  }
-}
+//       // _logf("dis: ");
+//       // _log(distanceTranvelled_cm, 2);
+//     }
+//     delay(150);
+//   }
+// }
 
 // ============
 // Hardwares/Servos
@@ -161,30 +222,9 @@ Servo brakeServo;
 int steer_center_us = 1430;
 
 // ============
-// IR Array
-// ============
-
-// // add this line in setup():
-// //    xTaskCreate(vTaskIrArray, "vTaskIrArray", 5000, NULL, 1, NULL);
-// void vTaskIrArray(void* pvParameters) {
-//   for (;;) {
-//     for (int i = 0; i < ir_array_count; i++) {
-//       ir_array_values[i] = digitalRead(PIN_ir_array[i]);
-//     }
-//     delay(1);
-//   }
-// }
-
-// ============
 // Route-test
 // ============
 
-enum EnterDirection {
-  EnterLeft = -250,
-  EnterRight = 250,
-};
-class EnterLineFollowManager {
-};
 enum Movement {
   Straight,
   Left,
@@ -335,43 +375,6 @@ void stopServos() {
 // ============
 // Line Follow Manager
 // ============
-
-boolean hasLine() {
-  for (int i = 0; i < ir_array_count; i++) {
-    if (ir_array_values[i] == 1) {
-      return true;
-    }
-  }
-  return false;
-}
-
-int countLine() {
-  int c = 0;
-  for (int i = 0; i < ir_array_count; i++) {
-    if (ir_array_values[i] == 1) {
-      c++;
-    }
-  }
-  return c;
-}
-
-int lastDir = 0;
-
-int dirLine() {
-  int c = countLine();
-  if (c == 0) return lastDir;
-  if (c != 1) return 0;
-  if (ir_array_values[0] == 1 || ir_array_values[1] == 1) {
-    lastDir = -1;
-    return lastDir;
-  }
-  if (ir_array_values[3] == 1 || ir_array_values[4] == 1) {
-    lastDir = 1;
-    return lastDir;
-  }
-  lastDir = 0;
-  return lastDir;
-}
 
 void doEnterLineFollow_1(double travelDis_cm) {
   // _log("doEnterLineFollow_1");
