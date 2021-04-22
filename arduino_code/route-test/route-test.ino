@@ -6,7 +6,6 @@
 boolean running = false;
 boolean disablePropeller = false;
 
-
 #define _len(x) (sizeof(x) / sizeof(x[0]))
 
 // ============
@@ -19,12 +18,13 @@ boolean disablePropeller = false;
 //library: https://github.com/iot-bus/BLESerial
 #include "BLESerial.h"
 
-#define _logf(...)              \
-  Serial.print(__VA_ARGS__); bleSerial.print(__VA_ARGS__); \
-  
-#define _log(...)                 \
-  Serial.println(__VA_ARGS__); bleSerial.println(__VA_ARGS__); \
-  
+#define _logf(...)           \
+  Serial.print(__VA_ARGS__); \
+  bleSerial.print(__VA_ARGS__);
+
+#define _log(...)              \
+  Serial.println(__VA_ARGS__); \
+  bleSerial.println(__VA_ARGS__);
 
 // #define _logf(...) (void)0
 // #define _log(...) (void)0
@@ -388,7 +388,7 @@ void handleMovement() {
       steerServo.writeMicroseconds(steer_center_us + 550);  // 1430, +-500 = 46.5 deg
       break;
     case UTurnEnd:
-  if (disablePropeller) return;
+      if (disablePropeller) return;
       if (running) propellerServo.writeMicroseconds(1270);
       break;
     case Brake_And_Stop:
