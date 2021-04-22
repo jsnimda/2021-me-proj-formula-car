@@ -234,6 +234,16 @@ int dirLine() {
 // char logBuffer[50];
 // sprintf(buffer, "the current value is %d", i++);
 
+void logIR() {
+  
+      _logf("ir array:");
+      for (int i = 0; i < ir_array_count; i++) {
+        _logf(" ");
+        _logf(ir_array_values[i]);
+      }
+      _log();
+
+}
 // add this line in setup():
 //    xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
 void vTaskStatusLogger(void* pvParameters) {
@@ -302,7 +312,7 @@ double segments[] = {
     30,           //Straight
     25.934,       //Right
     42.1 - 10,    //Straight
-    45.305 - 15,  //EnterLineFollow_1
+    45.305 - 5,  //EnterLineFollow_1
     // 23.699 - 1,                          //Left
     0,            //Left ms
     10,           //Straight
@@ -323,6 +333,7 @@ Movement segMovements[] = {
     Left_ms_1,
     Straight,
     EnterLineFollow_2,
+    Brake_And_Stop,
     Brake_And_Go,
     UTurn,
     UTurnEnd,
@@ -433,12 +444,12 @@ void stopServos() {
 
 int getDir() {
   if (where_is_line >= -20) return where_is_line;
-  return where_is_line_last;
+  return 0;
 }
 
 #define deflect_1 100
-#define deflect_2 200
-#define deflect_3 300
+#define deflect_2 120
+#define deflect_3 150
 
 void doSimpleLineFollow(double travelDis_cm) {
   int init_pos = distanceTranvelled_cm;
@@ -468,8 +479,11 @@ void doSimpleLineFollow(double travelDis_cm) {
         us = steer_center_us + deflect_3;
         break;
     }
+    steerServo.writeMicroseconds(us);
 
-    delay(1);
+    // if (ir_array_values[4] == 1) logIR();
+
+    delay(20);
   }
 }
 
@@ -483,6 +497,7 @@ void doEnterLineFollow_1(double travelDis_cm) {
       cross_count = 0;
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(475);
+      // logIR();
       doSimpleLineFollow(travelDis_cm);
       // int init_pos = distanceTranvelled_cm;
       // steerServo.writeMicroseconds(steer_center_us);
