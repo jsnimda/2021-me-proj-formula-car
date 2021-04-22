@@ -6,6 +6,9 @@
 boolean running = false;
 boolean disablePropeller = false;
 
+#define DEFAULT_propeller_us 1260
+#define FASTER_propeller_us 1270
+
 #define _len(x) (sizeof(x) / sizeof(x[0]))
 
 // ============
@@ -404,8 +407,8 @@ void handleMovement() {
       gotoNextSegment();
       break;
     case Left_ms_2:
-      steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
-      delay(600);
+      steerServo.writeMicroseconds(steer_center_us - 550);  // 1430, +-500 = 46.5 deg
+      delay(550);
       // for (int i = 0; i < 300; i++) {
       //   delay(1);
       //   if (hasLine()) break;
@@ -424,14 +427,14 @@ void handleMovement() {
     case Brake_And_Go:  // u turn afterwards
       doBrake();
       seg_offset = distanceTranvelled_cm;
-      if (running) restartPropeller(1280);
+      if (running) restartPropeller(FASTER_propeller_us);
       break;
     case UTurn:
       steerServo.writeMicroseconds(steer_center_us + 550);  // 1430, +-500 = 46.5 deg
       break;
     case UTurnEnd:
       if (disablePropeller) return;
-      if (running) propellerServo.writeMicroseconds(1270);
+      if (running) propellerServo.writeMicroseconds(DEFAULT_propeller_us);
       break;
     case Brake_And_Stop:
       doBrake();
@@ -628,7 +631,9 @@ void doEnterLineFollow_3() {
       // _log("hasLine");
       cross_count = 0;
       steerServo.writeMicroseconds(steer_center_us - 500);
-      delay(275);
+      delay(500);
+      steerServo.writeMicroseconds(steer_center_us);
+      delay(100);
       // logIR();
       doSimpleLineFollow(115+15+15);
       // int init_pos = distanceTranvelled_cm;
@@ -729,7 +734,7 @@ void doBrake() {
 // }
 
 void restartPropeller() {
-  restartPropeller(1270);
+  restartPropeller(DEFAULT_propeller_us);
 }
 void restartPropeller(int b) {
   if (disablePropeller) return;
