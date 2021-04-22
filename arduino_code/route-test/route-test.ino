@@ -88,6 +88,17 @@ void vTaskEncoder(void* pvParameters) {
   int last = 1;
   unsigned long long lastTime = 0;
   for (;;) {
+
+    if (running) {
+      if (!bleSerial.connected()) {
+        running = false;
+        reset();
+        waitForBle();
+      }
+    } 
+  
+
+
     int current = digitalRead(PIN_encoder);
     if (current != last) {
       encoderCount++;
@@ -97,6 +108,13 @@ void vTaskEncoder(void* pvParameters) {
       updateEncoderDistance();
     }
     last = current;
+
+
+    for (int i = 0; i < ir_array_count; i++) {
+      ir_array_values[i] = digitalRead(PIN_ir_array[i]);
+    }
+
+
     delay(1);
   }
 }
@@ -148,16 +166,16 @@ int steer_center_us = 1430;
 // IR Array
 // ============
 
-// add this line in setup():
-//    xTaskCreate(vTaskIrArray, "vTaskIrArray", 5000, NULL, 1, NULL);
-void vTaskIrArray(void* pvParameters) {
-  for (;;) {
-    for (int i = 0; i < ir_array_count; i++) {
-      ir_array_values[i] = digitalRead(PIN_ir_array[i]);
-    }
-    delay(1);
-  }
-}
+// // add this line in setup():
+// //    xTaskCreate(vTaskIrArray, "vTaskIrArray", 5000, NULL, 1, NULL);
+// void vTaskIrArray(void* pvParameters) {
+//   for (;;) {
+//     for (int i = 0; i < ir_array_count; i++) {
+//       ir_array_values[i] = digitalRead(PIN_ir_array[i]);
+//     }
+//     delay(1);
+//   }
+// }
 
 // ============
 // Route-test
@@ -185,7 +203,7 @@ enum Movement {
 
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
-double segments[] = {30, 25.934, 42.1 - 7, 45.305, 25.699, 10, 20.401, 0, 110, 10, 25, 0};
+double segments[] = {30, 25.934, 42.1 - 10, 45.305, 23.699, 10, 35.401, 0, 110, 15, 25, 0};
 Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, Straight, EnterLineFollow_2, Brake_And_Go, Right, Straight, Left, Brake};
 
 int currentSegmentIndex = 0;
@@ -371,13 +389,13 @@ void setup() {
     pinMode(PIN_ir_array[i], INPUT);
   }
   xTaskCreate(vTaskEncoder, "vTaskEncoder", 1000, NULL, 1, NULL);
-  xTaskCreate(vTaskIrArray, "vTaskIrArray", 5000, NULL, 1, NULL);
+  // xTaskCreate(vTaskIrArray, "vTaskIrArray", 1000, NULL, 1, NULL);
   running = true;
 
 #ifdef _DEV_BLE_LOG
   bleSerial.begin("ESP32-ble-js");
-  xTaskCreate(vTaskCheckBle, "vTaskCheckBle", 1000, NULL, 1, NULL);
-  xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
+  // xTaskCreate(vTaskCheckBle, "vTaskCheckBle", 1000, NULL, 1, NULL);
+  // xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
   waitForBle();
 #endif
 }
@@ -401,7 +419,7 @@ void doBrake() {
 void restartPropeller() {
   if (!running) return;
   propellerServo.writeMicroseconds(1400);
-  delay(300);
+  delay(500);
   propellerServo.writeMicroseconds(1270);
 }
 
