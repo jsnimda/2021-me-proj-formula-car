@@ -143,6 +143,7 @@ line left from right: 20
 int where_is_line_last = -30;
 int where_is_line = -30;
 int cross_count = 0;
+int go_off = -30;
 
 void setWhere(int where) {
   if (where != where_is_line) {
@@ -153,8 +154,14 @@ void setWhere(int where) {
 
 void findWhere() {
   if (countLine(ir_array_values) == 0 && countLine(ir_array_values_last) == 1) {
-    if (ir_array_values_last[0] == 1) setWhere(-20);
-    if (ir_array_values_last[4] == 1) setWhere(20);
+    if (ir_array_values_last[0] == 1) {
+      setWhere(-20);
+      go_off = -20;
+    }
+    if (ir_array_values_last[4] == 1) {
+      setWhere(20);
+      go_off = 20;
+    }
     return;
   }
   if (countLine(ir_array_values) == 0) {
@@ -461,14 +468,16 @@ void stopServos() {
 
 int getDir() {
   if (where_is_line >= -20) return where_is_line;
+  if (go_off == -20 || go_off == 20) return go_off;
   return 0;
 }
 
 #define deflect_1 100
 #define deflect_2 120
-#define deflect_3 150
+#define deflect_3 120
 
 void doSimpleLineFollow(double travelDis_cm) {
+  go_off = -30;
   _log("doSimpleLineFollow");
   int init_pos = distanceTranvelled_cm;
   while (distanceTranvelled_cm - init_pos < travelDis_cm) {
@@ -507,6 +516,7 @@ void doSimpleLineFollow(double travelDis_cm) {
 }
 
 void doSimpleLineFollow2() {
+  go_off = -30;
   _log("doSimpleLineFollow2");
   int init_pos = distanceTranvelled_cm;
   int target = 999999999;
