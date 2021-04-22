@@ -207,7 +207,7 @@ double segments[] = {
     45.305 - 15,                          //EnterLineFollow_1
     23.699 + 3,                          //Left
     10,                          //Straight
-    38.401 + 20,                          //EnterLineFollow_2
+    38.401 + 15,                          //EnterLineFollow_2
     0,                          //Brake_And_Go
     100,                          //UTurn
     0,                          //UTurnEnd
@@ -223,11 +223,11 @@ Movement segMovements[] = {
   Left, 
   Straight, 
   EnterLineFollow_2, 
-  Brake_And_Stop,
   Brake_And_Go, 
   UTurn, 
   UTurnEnd, 
   Straight, 
+  Brake_And_Stop,
   Left_until_middle, 
   EnterLineFollow_3, 
   Brake};
@@ -389,7 +389,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
     if (hasLine()) {
       _log("hasLine");
       steerServo.writeMicroseconds(steer_center_us + 500);
-      delay(525);
+      delay(550);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
       while (distanceTranvelled_cm - init_pos < travelDis_cm) {
