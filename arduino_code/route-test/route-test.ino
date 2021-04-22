@@ -367,8 +367,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
       delay(500);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
-      Calibration();
-      while (distanceTranvelled_cm - init_pos < travelDis_cm) delay(1);
+      while (distanceTranvelled_cm - init_pos < travelDis_cm) {Calibration();delay(1);}
       seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
       currentSegmentIndex++;
       handleMovement();
