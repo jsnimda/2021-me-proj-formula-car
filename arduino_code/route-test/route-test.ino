@@ -11,7 +11,6 @@ boolean running = false;
 // Race Management
 // ============
 
-
 // ============
 // BLE terminal
 // ============
@@ -93,16 +92,13 @@ void vTaskEncoder(void* pvParameters) {
   int last = 1;
   unsigned long long lastTime = 0;
   for (;;) {
-
     if (running) {
       if (!bleSerial.connected()) {
         running = false;
         reset();
         waitForBle();
       }
-    } 
-  
-
+    }
 
     int current = digitalRead(PIN_encoder);
     if (current != last) {
@@ -114,11 +110,9 @@ void vTaskEncoder(void* pvParameters) {
     }
     last = current;
 
-
     for (int i = 0; i < ir_array_count; i++) {
       ir_array_values[i] = digitalRead(PIN_ir_array[i]);
     }
-
 
     delay(1);
   }
@@ -257,14 +251,14 @@ void handleMovement() {
       steerServo.writeMicroseconds(steer_center_us + 550);  // 1430, +-500 = 46.5 deg
       break;
     case UTurnEnd:
-      if (running)   propellerServo.writeMicroseconds(1270);
+      if (running) propellerServo.writeMicroseconds(1270);
       break;
     case Brake_And_Stop:
       doBrake();
       running = false;
       break;
     case Left_until_middle:
-    _log("Left_until_middle");
+      _log("Left_until_middle");
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(200);
       while (ir_array_values[2] != 1) {
@@ -324,14 +318,15 @@ int dirLine() {
   int c = countLine();
   if (c == 0) return lastDir;
   if (c != 1) return 0;
-  if (ir_array_values[0] == 1 || ir_array_values[1] == 1) 
+  if (ir_array_values[0] == 1 || ir_array_values[1] == 1)
     lastDir = -1;
   else if (ir_array_values[3] == 1 || ir_array_values[4] == 1)
     lastDir = 1;
-  else lastDir = 0;
+  else
+    lastDir = 0;
   return lastDir;
 }
- 
+
 void doEnterLineFollow_1(double travelDis_cm) {
   _log("doEnterLineFollow_1");
   steerServo.writeMicroseconds(steer_center_us);
@@ -367,7 +362,10 @@ void doEnterLineFollow_2(double travelDis_cm) {
       delay(500);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
-      while (distanceTranvelled_cm - init_pos < travelDis_cm) {Calibration();delay(1);}
+      while (distanceTranvelled_cm - init_pos < travelDis_cm) {
+        Calibration();
+        delay(1);
+      }
       seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
       currentSegmentIndex++;
       handleMovement();
@@ -380,7 +378,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
   }
 }
 
-void doEnterLineFollow_3() { // simpleLineFollow
+void doEnterLineFollow_3() {  // simpleLineFollow
   _log("doEnterLineFollow_3");
   double target = distanceTranvelled_cm + 80;
   steerServo.writeMicroseconds(steer_center_us);
@@ -403,17 +401,16 @@ void doEnterLineFollow_3() { // simpleLineFollow
   }
 }
 
-void Calibration()
-{
+void Calibration() {
   int Angle_Cal = 100;
-  if(segMovements[currentSegmentIndex]== DoEnterLineFollow_2)
-  Angle_Cal = -Angle_Cal*2;
-  int Line=dirLine();
-  if(Line!=0)
-    While(Angle_Cal>0){      
-      steerServo.writeMicroseconds(Steer_center_us + Angle_Cal/(-2));
-      Angle_Cal/=(-2);
-    } 
+  if (segMovements[currentSegmentIndex] == Movement::EnterLineFollow_2)
+    Angle_Cal = -Angle_Cal * 2;
+  int Line = dirLine();
+  if (Line != 0)
+    while(Angle_Cal > 0) {
+      steerServo.writeMicroseconds(steer_center_us + Angle_Cal / (-2));
+      Angle_Cal /= (-2);
+    }
 }
 // ============
 // Main
@@ -445,7 +442,6 @@ void setup() {
   }
 
   bleSerial.begin("ESP32-ble-js");
-
 
   xTaskCreate(vTaskEncoder, "vTaskEncoder", 1000, NULL, 1, NULL);
   // xTaskCreate(vTaskIrArray, "vTaskIrArray", 1000, NULL, 1, NULL);
