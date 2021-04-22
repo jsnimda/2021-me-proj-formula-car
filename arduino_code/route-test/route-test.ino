@@ -8,6 +8,11 @@ boolean running = false;
 #define _len(x) (sizeof(x) / sizeof(x[0]))
 
 // ============
+// Race Management
+// ============
+
+
+// ============
 // BLE terminal
 // ============
 
@@ -206,7 +211,7 @@ enum Movement {
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
 double segments[] = {30, 25.934, 42.1 - 10, 45.305 - 5, 23.699 - 5, 10, 38.401 + 20, 0, 100, 0, 20, 0, 100, 0};
-Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, Straight, EnterLineFollow_2, Brake_And_Go, UTurn, UTurnEnd, Straight, Left_until_middle, EnterLineFollow_3, Brake};
+Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Brake_And_Stop, Left, Straight, EnterLineFollow_2, Brake_And_Go, UTurn, UTurnEnd, Straight, Left_until_middle, EnterLineFollow_3, Brake};
 
 int currentSegmentIndex = 0;
 double seg_offset = 0;
@@ -319,15 +324,14 @@ int dirLine() {
   int c = countLine();
   if (c == 0) return lastDir;
   if (c != 1) return 0;
-  if (ir_array_values[0] == 1 || ir_array_values[1] == 1) {
+  if (ir_array_values[0] == 1 || ir_array_values[1] == 1) 
     lastDir = -1;
-  return lastDir;
-    }
-  if (ir_array_values[3] == 1 || ir_array_values[4] == 1) {lastDir = 1; return lastDir;}
-  lastDir = 0;
+  else if (ir_array_values[3] == 1 || ir_array_values[4] == 1)
+    lastDir = 1;
+  else lastDir = 0;
   return lastDir;
 }
-
+ 
 void doEnterLineFollow_1(double travelDis_cm) {
   _log("doEnterLineFollow_1");
   steerServo.writeMicroseconds(steer_center_us);
@@ -339,10 +343,8 @@ void doEnterLineFollow_1(double travelDis_cm) {
       delay(450);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
-      while (distanceTranvelled_cm - init_pos < travelDis_cm) {
-        delay(1);
-      }
-
+      Calibration();
+      while (distanceTranvelled_cm - init_pos < travelDis_cm) delay(1);
       seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
       currentSegmentIndex++;
       handleMovement();
@@ -365,10 +367,8 @@ void doEnterLineFollow_2(double travelDis_cm) {
       delay(500);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
-      while (distanceTranvelled_cm - init_pos < travelDis_cm) {
-        delay(1);
-      }
-
+      calibration();
+      while (distanceTranvelled_cm - init_pos < travelDis_cm) delay(1);
       seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
       currentSegmentIndex++;
       handleMovement();
@@ -404,6 +404,18 @@ void doEnterLineFollow_3() { // simpleLineFollow
   }
 }
 
+void Calibration()
+{
+  int Angle_Cal = 100;
+  if(segMovements[currentSegmentIndex]== DoEnterLineFollow_2)
+  Angle_Cal = -Angle_Cal*2;
+  int Line=dirLine();
+  if(Line!=0)
+    While(Angle_Cal>0){      
+      steerServo.writeMicroseconds(Steer_center_us + Angle_Cal/(-2));
+      Angle_Cal/=(-2);
+    } 
+}
 // ============
 // Main
 // ============
