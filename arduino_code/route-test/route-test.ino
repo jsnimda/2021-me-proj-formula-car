@@ -150,15 +150,18 @@ void setWhere(int where) {
     if (where_is_line >= -20) where_is_line_last = where_is_line;
     where_is_line = where;
   }
+  if (where >= -2 && where <= 2) {
+    go_off = -30;
+  }
 }
 
 void findWhere() {
-  if (countLine(ir_array_values) == 0 && countLine(ir_array_values_last) == 1) {
-    if (ir_array_values_last[0] == 1) {
+  if (countLine(ir_array_values) == 0 && countLine(ir_array_values_last) <= 2) {
+    if (ir_array_values_last[0] == 1 || ir_array_values_last[1] == 1) {
       setWhere(-20);
       go_off = -20;
     }
-    if (ir_array_values_last[4] == 1) {
+    if (ir_array_values_last[4] == 1 || ir_array_values_last[3] == 1) {
       setWhere(20);
       go_off = 20;
     }
@@ -331,7 +334,7 @@ double segments[] = {
     0,            //UTurnEnd
     3,           //Straight
     0,            //Left_ms_2
-    100,          //EnterLineFollow_3
+    0,          //EnterLineFollow_3
     0};           //Brake
 Movement segMovements[] = {
     Straight,
@@ -403,6 +406,10 @@ void handleMovement() {
     case Left_ms_2:
       steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
       delay(600);
+      // for (int i = 0; i < 300; i++) {
+      //   delay(1);
+      //   if (hasLine()) break;
+      // }
       gotoNextSegment();
       break;
     case Right:
@@ -473,8 +480,8 @@ int getDir() {
 }
 
 #define deflect_1 100
-#define deflect_2 120
-#define deflect_3 120
+#define deflect_2 100
+#define deflect_3 100
 
 void doSimpleLineFollow(double travelDis_cm) {
   go_off = -30;
@@ -623,7 +630,7 @@ void doEnterLineFollow_3() {
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(275);
       // logIR();
-      doSimpleLineFollow(115+15);
+      doSimpleLineFollow(115+15+15);
       // int init_pos = distanceTranvelled_cm;
       // steerServo.writeMicroseconds(steer_center_us);
       // while (distanceTranvelled_cm - init_pos < travelDis_cm) {
