@@ -88,16 +88,13 @@ void vTaskEncoder(void* pvParameters) {
   int last = 1;
   unsigned long long lastTime = 0;
   for (;;) {
-
     if (running) {
       if (!bleSerial.connected()) {
         running = false;
         reset();
         waitForBle();
       }
-    } 
-  
-
+    }
 
     int current = digitalRead(PIN_encoder);
     if (current != last) {
@@ -109,11 +106,9 @@ void vTaskEncoder(void* pvParameters) {
     }
     last = current;
 
-
     for (int i = 0; i < ir_array_count; i++) {
       ir_array_values[i] = digitalRead(PIN_ir_array[i]);
     }
-
 
     delay(1);
   }
@@ -205,8 +200,37 @@ enum Movement {
 
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
-double segments[] = {30, 25.934, 42.1 - 10, 45.305 - 5, 23.699 - 5, 10, 38.401 + 20, 0, 100, 0, 20, 0, 100, 0};
-Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, Straight, EnterLineFollow_2, Brake_And_Go, UTurn, UTurnEnd, Straight, Left_until_middle, EnterLineFollow_3, Brake};
+double segments[] = {
+    30,                          //Straight
+    25.934,                          //Right
+    42.1 - 10,                          //Straight
+    45.305 - 15,                          //EnterLineFollow_1
+    23.699 + 3,                          //Left
+    10,                          //Straight
+    38.401 + 20,                          //EnterLineFollow_2
+    0,                          //Brake_And_Go
+    100,                          //UTurn
+    0,                          //UTurnEnd
+    20,                          //Straight
+    0,                          //Left_until_middle
+    100,                          //EnterLineFollow_3
+    0};                          //Brake
+Movement segMovements[] = {
+  Straight, 
+  Right, 
+  Straight, 
+  EnterLineFollow_1, 
+  Left, 
+  Straight, 
+  EnterLineFollow_2, 
+  Brake_And_Stop,
+  Brake_And_Go, 
+  UTurn, 
+  UTurnEnd, 
+  Straight, 
+  Left_until_middle, 
+  EnterLineFollow_3, 
+  Brake};
 
 int currentSegmentIndex = 0;
 double seg_offset = 0;
@@ -252,14 +276,14 @@ void handleMovement() {
       steerServo.writeMicroseconds(steer_center_us + 550);  // 1430, +-500 = 46.5 deg
       break;
     case UTurnEnd:
-      if (running)   propellerServo.writeMicroseconds(1270);
+      if (running) propellerServo.writeMicroseconds(1270);
       break;
     case Brake_And_Stop:
       doBrake();
       running = false;
       break;
     case Left_until_middle:
-    _log("Left_until_middle");
+      _log("Left_until_middle");
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(200);
       while (ir_array_values[2] != 1) {
@@ -321,9 +345,12 @@ int dirLine() {
   if (c != 1) return 0;
   if (ir_array_values[0] == 1 || ir_array_values[1] == 1) {
     lastDir = -1;
-  return lastDir;
-    }
-  if (ir_array_values[3] == 1 || ir_array_values[4] == 1) {lastDir = 1; return lastDir;}
+    return lastDir;
+  }
+  if (ir_array_values[3] == 1 || ir_array_values[4] == 1) {
+    lastDir = 1;
+    return lastDir;
+  }
   lastDir = 0;
   return lastDir;
 }
@@ -336,7 +363,7 @@ void doEnterLineFollow_1(double travelDis_cm) {
       _log("hasLine");
       delay(50);
       steerServo.writeMicroseconds(steer_center_us - 500);
-      delay(450);
+      delay(475);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
       while (distanceTranvelled_cm - init_pos < travelDis_cm) {
@@ -362,7 +389,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
     if (hasLine()) {
       _log("hasLine");
       steerServo.writeMicroseconds(steer_center_us + 500);
-      delay(500);
+      delay(525);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
       while (distanceTranvelled_cm - init_pos < travelDis_cm) {
@@ -381,7 +408,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
   }
 }
 
-void doEnterLineFollow_3() { // simpleLineFollow
+void doEnterLineFollow_3() {  // simpleLineFollow
   _log("doEnterLineFollow_3");
   double target = distanceTranvelled_cm + 80;
   steerServo.writeMicroseconds(steer_center_us);
@@ -434,7 +461,6 @@ void setup() {
   }
 
   bleSerial.begin("ESP32-ble-js");
-
 
   xTaskCreate(vTaskEncoder, "vTaskEncoder", 1000, NULL, 1, NULL);
   // xTaskCreate(vTaskIrArray, "vTaskIrArray", 1000, NULL, 1, NULL);
