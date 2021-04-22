@@ -198,13 +198,15 @@ enum Movement {
   EnterLineFollow_1,
   EnterLineFollow_2,
   EnterLineFollow_3,
+  Left_until_middle,
   UTurn,
+  UTurnEnd,
 };
 
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
-double segments[] = {30, 25.934, 42.1 - 10, 45.305, 23.699, 10, 35.401, 0, 110, 15, 25, 0};
-Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, Straight, EnterLineFollow_2, Brake_And_Go, Right, Straight, Left, Brake};
+double segments[] = {30, 25.934, 42.1 - 10, 45.305 - 5, 23.699 - 5, 10, 38.401 + 20, 0, 100, 0, 17, 0, 100, 0};
+Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, Straight, EnterLineFollow_2, Brake_And_Go, UTurn, UTurnEnd, Straight, Left_until_middle, EnterLineFollow_3, Brake};
 
 int currentSegmentIndex = 0;
 double seg_offset = 0;
@@ -241,17 +243,32 @@ void handleMovement() {
     case Brake:
       doBrake();
       break;
-    case Brake_And_Go:
+    case Brake_And_Go:  // u turn afterwards
       doBrake();
       seg_offset = distanceTranvelled_cm;
-      if (running) restartPropeller();
+      if (running) restartPropeller(1280);
       break;
     case UTurn:
-      steerServo.writeMicroseconds(steer_center_us + 500);  // 1430, +-500 = 46.5 deg
+      steerServo.writeMicroseconds(steer_center_us + 550);  // 1430, +-500 = 46.5 deg
+      break;
+    case UTurnEnd:
+      if (running)   propellerServo.writeMicroseconds(1270);
       break;
     case Brake_And_Stop:
       doBrake();
       running = false;
+      break;
+    case Left_until_middle:
+    _log("Left_until_middle");
+      steerServo.writeMicroseconds(steer_center_us - 500);
+      delay(200);
+      while (ir_array_values[2] != 1) {
+        delay(1);
+      }
+      steerServo.writeMicroseconds(steer_center_us);
+      seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
+      currentSegmentIndex++;
+      handleMovement();
       break;
     case EnterLineFollow_1:
       doEnterLineFollow_1(segments[currentSegmentIndex]);
@@ -260,7 +277,7 @@ void handleMovement() {
       doEnterLineFollow_2(segments[currentSegmentIndex]);
       break;
     case EnterLineFollow_3:
-      doEnterLineFollow_3(segments[currentSegmentIndex]);
+      doEnterLineFollow_3();
       break;
   }
 }
@@ -282,12 +299,31 @@ boolean hasLine() {
   }
   return false;
 }
+
+int countLine() {
+  int c = 0;
+  for (int i = 0; i < ir_array_count; i++) {
+    if (ir_array_values[i] == 1) {
+      c++;
+    }
+  }
+  return c;
+}
+
+int dirLine() {
+  if (countLine() != 1) return 0;
+  if (ir_array_values[0] == 1 || ir_array_values[1] == 1) return -1;
+  if (ir_array_values[3] == 1 || ir_array_values[4] == 1) return 1;
+  return 0;
+}
+
 void doEnterLineFollow_1(double travelDis_cm) {
   _log("doEnterLineFollow_1");
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
       _log("hasLine");
+      delay(50);
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(450);
       int init_pos = distanceTranvelled_cm;
@@ -334,28 +370,25 @@ void doEnterLineFollow_2(double travelDis_cm) {
   }
 }
 
-void doEnterLineFollow_3(double travelDis_cm) {
+void doEnterLineFollow_3() { // simpleLineFollow
   _log("doEnterLineFollow_3");
+  double target = distanceTranvelled_cm + 130;
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
-    if (hasLine()) {
-      _log("hasLine");
-      steerServo.writeMicroseconds(steer_center_us - 500);
-      delay(600);
-      int init_pos = distanceTranvelled_cm;
-      steerServo.writeMicroseconds(steer_center_us);
-      while (distanceTranvelled_cm - init_pos < travelDis_cm) {
-        delay(1);
-      }
-
+    if (distanceTranvelled_cm >= target) {
       seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
       currentSegmentIndex++;
       handleMovement();
 
-      // doBrake();
-      // running = false;
+      doBrake();
+      running = false;
       return;
     }
+    int dd = dirLine();
+    if (dd == 0) steerServo.writeMicroseconds(steer_center_us);
+    if (dd == -1) steerServo.writeMicroseconds(steer_center_us + 200);
+    if (dd == 1) steerServo.writeMicroseconds(steer_center_us - 200);
+
     delay(1);
   }
 }
@@ -388,12 +421,15 @@ void setup() {
   for (int i = 0; i < ir_array_count; i++) {
     pinMode(PIN_ir_array[i], INPUT);
   }
+
+  bleSerial.begin("ESP32-ble-js");
+
+
   xTaskCreate(vTaskEncoder, "vTaskEncoder", 1000, NULL, 1, NULL);
   // xTaskCreate(vTaskIrArray, "vTaskIrArray", 1000, NULL, 1, NULL);
   running = true;
 
 #ifdef _DEV_BLE_LOG
-  bleSerial.begin("ESP32-ble-js");
   // xTaskCreate(vTaskCheckBle, "vTaskCheckBle", 1000, NULL, 1, NULL);
   // xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
   waitForBle();
@@ -417,10 +453,13 @@ void doBrake() {
 // }
 
 void restartPropeller() {
+  restartPropeller(1270);
+}
+void restartPropeller(int b) {
   if (!running) return;
   propellerServo.writeMicroseconds(1400);
   delay(500);
-  propellerServo.writeMicroseconds(1270);
+  propellerServo.writeMicroseconds(b);
 }
 
 void start() {
