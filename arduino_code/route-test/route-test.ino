@@ -360,6 +360,7 @@ void doEnterLineFollow_1(double travelDis_cm) {
 
 void doEnterLineFollow_2(double travelDis_cm) {
   _log("doEnterLineFollow_2");
+  angle_Cal=-200;
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
@@ -368,7 +369,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
       delay(500);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
-      while (distanceTranvelled_cm - init_pos < travelDis_cm) ;delay(1);
+      while (distanceTranvelled_cm - init_pos < travelDis_cm) {Calibration(angle_Cal);delay(1);}
       seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
       currentSegmentIndex++;
       handleMovement();
