@@ -185,7 +185,7 @@ void analyzeIR() {
 }
 
 void checkCross() {
-  if (countLine(ir_array_values) == 5 && countLine(ir_array_values_last) != 0 && countLine(ir_array_values_last) != 5) {
+  if (countLine(ir_array_values) == 5 && /*countLine(ir_array_values_last) != 0 &&*/ countLine(ir_array_values_last) != 5) {
     cross_count++;
     _logf("cross_count: ");
     _log(cross_count);
@@ -312,7 +312,7 @@ double segments[] = {
     30,           //Straight
     25.934,       //Right
     42.1 - 10,    //Straight
-    45.305 - 5,  //EnterLineFollow_1
+    45.305 - 15,  //EnterLineFollow_1
     // 23.699 - 1,                          //Left
     0,            //Left ms
     10,           //Straight
@@ -452,8 +452,51 @@ int getDir() {
 #define deflect_3 150
 
 void doSimpleLineFollow(double travelDis_cm) {
+  _log("doSimpleLineFollow");
   int init_pos = distanceTranvelled_cm;
   while (distanceTranvelled_cm - init_pos < travelDis_cm) {
+    int dir = getDir();
+    int us = steer_center_us;
+    switch (dir) {
+      case -20:
+        us = steer_center_us - deflect_3;
+        break;
+      case -2:
+        us = steer_center_us - deflect_2;
+        break;
+      case -1:
+        us = steer_center_us - deflect_1;
+        break;
+      case 0:
+        us = steer_center_us;
+        break;
+      case 1:
+        us = steer_center_us + deflect_1;
+        break;
+      case 2:
+        us = steer_center_us + deflect_2;
+        break;
+      case 20:
+        us = steer_center_us + deflect_3;
+        break;
+    }
+    steerServo.writeMicroseconds(us);
+
+    // if (ir_array_values[4] == 1) logIR();
+
+    delay(20);
+  }
+  _log("doSimpleLineFollow end");
+}
+
+void doSimpleLineFollow2() {
+  _log("doSimpleLineFollow2");
+  int init_pos = distanceTranvelled_cm;
+  int target = 999999999;
+  while (distanceTranvelled_cm < target) {
+    if (target == 999999999 && cross_count == 2) {
+      target = distanceTranvelled_cm + 15;
+    }
     int dir = getDir();
     int us = steer_center_us;
     switch (dir) {
@@ -521,14 +564,16 @@ void doEnterLineFollow_2(double travelDis_cm) {
   while (running) {
     if (hasLine()) {
       // _log("hasLine");
+      delay(50);
       cross_count = 0;
       steerServo.writeMicroseconds(steer_center_us + 500);
       delay(550);
-      int init_pos = distanceTranvelled_cm;
-      steerServo.writeMicroseconds(steer_center_us);
-      while (distanceTranvelled_cm - init_pos < travelDis_cm) {
-        delay(1);
-      }
+      doSimpleLineFollow2();
+      // int init_pos = distanceTranvelled_cm;
+      // steerServo.writeMicroseconds(steer_center_us);
+      // while (distanceTranvelled_cm - init_pos < travelDis_cm) {
+      //   delay(1);
+      // }
 
       gotoNextSegment();
 
