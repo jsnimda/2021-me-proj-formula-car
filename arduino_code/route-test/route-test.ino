@@ -115,18 +115,18 @@ void updateEncoderDistance() {
 void vTaskStatusLogger(void* pvParameters) {
   for (;;) {
     if (running) {
-      _logf("ir array:");
-      for (int i = 0; i < ir_array_count; i++) {
-        _logf(" ");
-        _logf(ir_array_values[i]);
-      }
-      _log();
+      // _logf("ir array:");
+      // for (int i = 0; i < ir_array_count; i++) {
+      //   _logf(" ");
+      //   _logf(ir_array_values[i]);
+      // }
+      // _log();
 
-      _logf("count: ");
-      _log(encoderCount);
+      // _logf("count: ");
+      // _log(encoderCount);
 
-      _logf("dis: ");
-      _log(distanceTranvelled_cm, 2);
+      // _logf("dis: ");
+      // _log(distanceTranvelled_cm, 2);
     }
     delay(150);
   }
@@ -176,14 +176,16 @@ enum Movement {
   Stop,
   Brake,
   Brake_And_Stop,
-  EnterLineFollow_left,
-  EnterLineFollow_right,
+  EnterLineFollow_1,
+  EnterLineFollow_2,
+  EnterLineFollow_3,
+  UTurn,
 };
 
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
-double segments[] =       {30,      25.934,   42.1,               30.305, 13.699,   63.401};
-Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_left, Left, EnterLineFollow_right, Brake};
+double segments[] = {30, 25.934, 42.1, 60.305, 13.699, 20.401, 0, 110, 0};
+Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, EnterLineFollow_2, Brake, Right, Brake};
 
 int currentSegmentIndex = 0;
 double seg_offset = 0;
@@ -220,14 +222,17 @@ void handleMovement() {
     case Brake:
       doBrake();
       break;
+    case UTurn:
+      steerServo.writeMicroseconds(steer_center_us + 500);  // 1430, +-500 = 46.5 deg
+      break;
     case Brake_And_Stop:
       doBrake();
       running = false;
-    case EnterLineFollow_left:
-      doEnterLineFollow(EnterDirection::EnterLeft, segments[currentSegmentIndex]);
+    case EnterLineFollow_1:
+      doEnterLineFollow_1(segments[currentSegmentIndex]);
       break;
-    case EnterLineFollow_right:
-      doEnterLineFollow(EnterDirection::EnterRight, segments[currentSegmentIndex]);
+    case EnterLineFollow_2:
+      doEnterLineFollow_2(segments[currentSegmentIndex]);
       break;
   }
 }
@@ -249,12 +254,37 @@ boolean hasLine() {
   }
   return false;
 }
-void doEnterLineFollow(int direction, double travelDis_cm) {
+void doEnterLineFollow_1(double travelDis_cm) {
+  _log("doEnterLineFollow_1");
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
-      steerServo.writeMicroseconds(steer_center_us + direction);
-      delay(1000);
+      steerServo.writeMicroseconds(steer_center_us - 500);
+      delay(500);
+      int init_pos = distanceTranvelled_cm;
+      steerServo.writeMicroseconds(steer_center_us);
+      while (distanceTranvelled_cm - init_pos < travelDis_cm) {
+        delay(1);
+      }
+
+      seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
+      currentSegmentIndex++;
+      handleMovement();
+
+      // doBrake();
+      // running = false;
+      return;
+    }
+    delay(1);
+  }
+}
+
+void doEnterLineFollow_2(double travelDis_cm) {
+  steerServo.writeMicroseconds(steer_center_us);
+  while (running) {
+    if (hasLine()) {
+      steerServo.writeMicroseconds(steer_center_us + 250);
+      delay(650);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
       while (distanceTranvelled_cm - init_pos < travelDis_cm) {
@@ -317,8 +347,9 @@ void doBrake() {
   //ref stopServos
   propellerServo.writeMicroseconds(1000);
   brakeServo.writeMicroseconds(1150);
-  delay(3000);
+  delay(1000);
   stopServos();
+  delay(2000);
 }
 // dis_test
 // void dis_test() {
@@ -329,9 +360,9 @@ void doBrake() {
 // }
 
 void start() {
-  propellerServo.writeMicroseconds(1275);
+  propellerServo.writeMicroseconds(1350);
   delay(300);
-  propellerServo.writeMicroseconds(1248);
+  propellerServo.writeMicroseconds(1268);
   encoderCount = 0;
   distanceTranvelled_cm = 0;
 }
