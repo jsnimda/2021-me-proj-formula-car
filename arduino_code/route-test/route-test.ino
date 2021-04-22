@@ -486,6 +486,47 @@ int getDir() {
 #define deflect_2 100
 #define deflect_3 100
 
+void doSimpleLineFolow(Double travelDis_cm,int line)
+{
+  int init_pos = distanceTranvelled_cm;
+   int target = 999999999;
+   if(line != 2){target= travelDis_cm;init_pos=0;}
+   
+  while (distanceTranvelled_cm - init_pos< target) {
+    if (target == 999999999 && cross_count == 2) {
+      target = distanceTranvelled_cm + 15;
+    }
+    switch (dir) {
+      case -20:
+        us = steer_center_us - deflect_3;
+        break;
+      case -2:
+        us = steer_center_us - deflect_2;
+        break;
+      case -1:
+        us = steer_center_us - deflect_1;
+        break;
+      case 0:
+        us = steer_center_us;
+        break;
+      case 1:
+        us = steer_center_us + deflect_1;
+        break;
+      case 2:
+        us = steer_center_us + deflect_2;
+        break;
+      case 20:
+        us = steer_center_us + deflect_3;
+        break;
+    }
+    steerServo.writeMicroseconds(us);
+
+    // if (ir_array_values[4] == 1) logIR();
+
+    delay(20);
+  }
+ 
+}
 void doSimpleLineFollow(double travelDis_cm) {
   go_off = -30;
   _log("doSimpleLineFollow");
