@@ -76,10 +76,10 @@ void vTaskEncoder(void* pvParameters) {
 
 void setup() {
   Serial.begin(115200);
-  propellerServo.attach(16, 1000, 2000);
+  propellerServo.attach(23, 1000, 2000);
   propellerServo.writeMicroseconds(1000);
-  SteeringServo.attach(17, 500, 2500);
-  SteeringServo.writeMicroseconds(900);
+  SteeringServo.attach(19, 500, 2500);
+  SteeringServo.writeMicroseconds(1430);
   // LeftBrakeServo.attach(36);
   // RightBrakeServo.attach(39);
   // LeftBrakeServo.write(0);
@@ -103,7 +103,8 @@ int val = 0;
 int car_position = 0;
 int Round = 0;
 double a = 0.5;
-
+int CheckRound=0;
+int ReturnRound=0;
 void loop() {
 #if _DEV_BLE_DEBUG
   checkBle();
@@ -115,12 +116,17 @@ void loop() {
   }
 }
 
-void checkEncoder() {
+int checkEncoder() {
   static int last = 1;
   int intEncoder = digitalRead(26);
   if (last != 0 && intEncoder == 0)
-    Round++;
+    CheckRound++;
+  if(CheckRound==10){
+    ReturnRound++;   
+    CheckRound=0; 
+  }
   last = intEncoder;
+  return ReturnRound;
 }
 
 void _loop() {
@@ -130,8 +136,7 @@ void _loop() {
     TCRT[n] = digitalRead(ir_sensor_pins[n]);
     //_log(TCRT[n]);
   }
-  _logf("Round:");
-  _log(Round);
+  Round = checkEncoder();
   car_position = Encoder(Round);
   _logf("car_position:");
   _log(car_position);
@@ -147,53 +152,40 @@ void Turn(int Senser[5], int The_Car_position) {
     }*/
   if (Senser[1] == 0 && Senser[2] == 0 && Senser[3] == 0 ) {
     if (The_Car_position == 1 || The_Car_position == 8)
-      SteeringServo.writeMicroseconds(1400);
-    else if (The_Car_position == 3 || The_Car_position == 5)
-      SteeringServo.writeMicroseconds(500);
+      SteeringServo.writeMicroseconds(1930);
+    else if (The_Car_position == 2 || The_Car_position == 5)
+      SteeringServo.writeMicroseconds(930);
     else  // if(The_Car_position!=3)
-      SteeringServo.writeMicroseconds(900);
-  }  else if (Senser[0] == 1 || Senser[1] == 1 || Senser[2] == 1 || Senser[3] == 1 || Senser[4] == 1) {
-    if(The_Car_position >= 4 && The_Car_position <=5 || The_Car_position > 6 && The_Car_position <= 9)
-     Track(Senser);
-     }
+      SteeringServo.writeMicroseconds(1430);
+  }  
+    //else if (Senser[0] == 1 || Senser[1] == 1 || Senser[2] == 1 || Senser[3] == 1 || Senser[4] == 1) {
+    // if(The_Car_position >= 4 && The_Car_position <=5 || The_Car_position > 6 && The_Car_position <= 9)
+    //  Track(Senser);
+     //}
 }
 
-void Track(int TrackSenser[]) {
-  int Trackangle = 200;
-  if (TrackSenser[0] == 1 && TrackSenser[0] == 0&&TrackSenser[1] == 0&& TrackSenser[2] == 0&& TrackSenser[3] == 0&&TrackSenser[4] ==0)
-    SteeringServo.writeMicroseconds(1500);
-  if (TrackSenser[0] == 1 && TrackSenser[1] == 1)
-    SteeringServo.writeMicroseconds(1500-Trackangle);
-  else if (TrackSenser[1] == 1 && TrackSenser[2] == 1)
-    SteeringServo.writeMicroseconds(1500 -Trackangle/2);
-  else if (TrackSenser[4] == 1 && TrackSenser[3] == 1)
-    SteeringServo.writeMicroseconds(1500 + Trackangle);
-  else if (TrackSenser[3] == 1 && TrackSenser[2] == 1)
-    SteeringServo.writeMicroseconds(1500 + Trackangle/2);
-}
+
 
 int Encoder(int Round) {
   int a = 0;
-  if (Round >= 1 && Round <3)//First Left Turn
+  if (Round >= 0 && Round <1)//First Left Turn
     a = 1;
-  else if (Round >= 3 && Round < 4)//The area Between first left Turn & First Right Turn
+  else if (Round >= 1 && Round < 2)//First Right Turn
     a = 2;
-  else if (Round >= 5 && Round < 6)//First Right Turn
+  else if (Round >= 3 && Round < 4)//First Track Line
     a = 3;
-  else if (Round >= 6 && Round < 10)//First Track Line
+  else if (Round >= 5 && Round < 6)//Second Right Turn
     a = 4;
-  else if (Round >= 10 && Round < 12)//Second Right Turn
+  else if (Round >= 6 && Round < 8)//Second Track line & Second Left Turn
     a = 5;
-  else if (Round >= 12 && Round < 14)//Second Track line & Second Left Turn
+  else if (Round >= 8 && Round < 11)//Tracking Second line
     a = 6;
-  else if (Round >= 14&& Round < 15)//Tracking Second line
+  else if (Round >= 11&& Round < 14)//First Stop & Left Turn to Second Line
     a = 7;
-   else if (Round >= 15&& Round < 20)//First Stop & Left Turn to Second Line
+   else if (Round >= 14&& Round < 16)//Tracking the Second To the Final area
     a = 8;
-   else if (Round >= 20&& Round < 26)//Tracking the Second To the Final area
+   else if (Round >= 16)
     a = 9;
-   else if (Round >=26)//Final Stop
-    a = 10;
   return a;
 }
 
@@ -204,3 +196,17 @@ void Brake() {
   delay(1000);
   delay(1000);
 }
+
+// void Track(int TrackSenser[]) {
+//   int Trackangle = 200;
+//   if (TrackSenser[0] == 1 && TrackSenser[0] == 0&&TrackSenser[1] == 0&& TrackSenser[2] == 0&& TrackSenser[3] == 0&&TrackSenser[4] ==0)
+//     SteeringServo.writeMicroseconds(1430);
+//   if (TrackSenser[0] == 1 && TrackSenser[1] == 1)
+//     SteeringServo.writeMicroseconds(1430-Trackangle);
+//   else if (TrackSenser[1] == 1 && TrackSenser[2] == 1)
+//     SteeringServo.writeMicroseconds(1430 -Trackangle/2);
+//   else if (TrackSenser[4] == 1 && TrackSenser[3] == 1)
+//     SteeringServo.writeMicroseconds(1430 + Trackangle);
+//   else if (TrackSenser[3] == 1 && TrackSenser[2] == 1)
+//     SteeringServo.writeMicroseconds(1430 + Trackangle/2);
+// }
