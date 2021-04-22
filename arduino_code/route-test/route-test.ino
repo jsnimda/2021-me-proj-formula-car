@@ -331,9 +331,11 @@ int dirLine() {
   else lastDir = 0;
   return lastDir;
 }
- 
+int angle_Cal = 0;
+
 void doEnterLineFollow_1(double travelDis_cm) {
   _log("doEnterLineFollow_1");
+  angle_Cal=200;
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
@@ -343,8 +345,7 @@ void doEnterLineFollow_1(double travelDis_cm) {
       delay(450);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
-      Calibration();
-      while (distanceTranvelled_cm - init_pos < travelDis_cm) delay(1);
+      while (distanceTranvelled_cm - init_pos < travelDis_cm) {Calibration(angle_Cal);delay(1);}
       seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
       currentSegmentIndex++;
       handleMovement();
@@ -367,7 +368,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
       delay(500);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
-      while (distanceTranvelled_cm - init_pos < travelDis_cm) {Calibration();delay(1);}
+      while (distanceTranvelled_cm - init_pos < travelDis_cm) ;delay(1);
       seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
       currentSegmentIndex++;
       handleMovement();
@@ -403,15 +404,12 @@ void doEnterLineFollow_3() { // simpleLineFollow
   }
 }
 
-void Calibration()
+void Calibration(int angle_in_Cal)
 {
-  int Angle_Cal = 100;
-  if(segMovements[currentSegmentIndex]== DoEnterLineFollow_2)
-  Angle_Cal = -Angle_Cal*2;
   int Line=dirLine();
   if(Line!=0)
-    While(Angle_Cal>0){      
-      steerServo.writeMicroseconds(Steer_center_us + Angle_Cal/(-2));
+    while(angle_in_Cal>0){      
+      steerServo.writeMicroseconds(steer_center_us + Angle_in_Cal/(-2));
       Angle_Cal/=(-2);
     } 
 }
