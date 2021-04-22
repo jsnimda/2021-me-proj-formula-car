@@ -431,6 +431,48 @@ void stopServos() {
 // Line Follow Manager
 // ============
 
+int getDir() {
+  if (where_is_line >= -20) return where_is_line;
+  return where_is_line_last;
+}
+
+#define deflect_1 100
+#define deflect_2 200
+#define deflect_3 300
+
+void doSimpleLineFollow(double travelDis_cm) {
+  int init_pos = distanceTranvelled_cm;
+  while (distanceTranvelled_cm - init_pos < travelDis_cm) {
+    int dir = getDir();
+    int us = steer_center_us;
+    switch (dir) {
+      case -20:
+        us = steer_center_us - deflect_3;
+        break;
+      case -2:
+        us = steer_center_us - deflect_2;
+        break;
+      case -1:
+        us = steer_center_us - deflect_1;
+        break;
+      case 0:
+        us = steer_center_us;
+        break;
+      case 1:
+        us = steer_center_us + deflect_1;
+        break;
+      case 2:
+        us = steer_center_us + deflect_2;
+        break;
+      case 20:
+        us = steer_center_us + deflect_3;
+        break;
+    }
+
+    delay(1);
+  }
+}
+
 void doEnterLineFollow_1(double travelDis_cm) {
   // _log("doEnterLineFollow_1");
   steerServo.writeMicroseconds(steer_center_us);
@@ -441,11 +483,12 @@ void doEnterLineFollow_1(double travelDis_cm) {
       cross_count = 0;
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(475);
-      int init_pos = distanceTranvelled_cm;
-      steerServo.writeMicroseconds(steer_center_us);
-      while (distanceTranvelled_cm - init_pos < travelDis_cm) {
-        delay(1);
-      }
+      doSimpleLineFollow(travelDis_cm);
+      // int init_pos = distanceTranvelled_cm;
+      // steerServo.writeMicroseconds(steer_center_us);
+      // while (distanceTranvelled_cm - init_pos < travelDis_cm) {
+      //   delay(1);
+      // }
 
       gotoNextSegment();
 
