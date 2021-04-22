@@ -210,7 +210,7 @@ enum Movement {
 
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
-double segments[] = {30, 25.934, 42.1 - 10, 45.305 - 5, 23.699 - 5, 10, 38.401 + 20, 0, 100, 0, 20, 0, 100, 0};
+double segments[] = {30, 25.934, 42.1 - 10, 45.305 - 5, 23.699 - 5, 10, 38.401 + 20, 0,0, 100, 0, 20, 0, 100, 0};
 Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, Straight, EnterLineFollow_2, Brake_And_Stop, Brake_And_Go, UTurn, UTurnEnd, Straight, Left_until_middle, EnterLineFollow_3, Brake};
 
 int currentSegmentIndex = 0;
@@ -331,7 +331,7 @@ int dirLine() {
   else lastDir = 0;
   return lastDir;
 }
-int angle_Cal = 0;
+int angle_Cal;
 
 void doEnterLineFollow_1(double travelDis_cm) {
   _log("doEnterLineFollow_1");
@@ -360,7 +360,7 @@ void doEnterLineFollow_1(double travelDis_cm) {
 
 void doEnterLineFollow_2(double travelDis_cm) {
   _log("doEnterLineFollow_2");
-  angle_Cal=-200;
+  angle_Cal=-400;
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
@@ -410,8 +410,8 @@ void Calibration(int angle_in_Cal)
   int Line=dirLine();
   if(Line!=0)
     while(angle_in_Cal>0){      
-      steerServo.writeMicroseconds(steer_center_us + Angle_in_Cal/(-2));
-      Angle_Cal/=(-2);
+      steerServo.writeMicroseconds(steer_center_us + angle_in_Cal/(-2));
+      angle_in_Cal/=(-2);
     } 
 }
 // ============
