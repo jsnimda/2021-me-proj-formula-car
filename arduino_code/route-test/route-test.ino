@@ -293,6 +293,7 @@ enum Movement {
   Straight,
   Left,
   Left_ms_1,
+  Left_ms_2,
   Right,
   Stop,
   Brake,
@@ -318,10 +319,11 @@ double segments[] = {
     10,           //Straight
     38.401 + 15,  //EnterLineFollow_2
     0,            //Brake_And_Go
-    100,          //UTurn
+    2+6,  // Straight
+    110,          //UTurn
     0,            //UTurnEnd
-    20,           //Straight
-    0,            //Left_until_middle
+    3,           //Straight
+    0,            //Left_ms_2
     100,          //EnterLineFollow_3
     0};           //Brake
 Movement segMovements[] = {
@@ -333,13 +335,13 @@ Movement segMovements[] = {
     Left_ms_1,
     Straight,
     EnterLineFollow_2,
-    Brake_And_Stop,
     Brake_And_Go,
+    Straight,
     UTurn,
     UTurnEnd,
     Straight,
+    Left_ms_2,
     Brake_And_Stop,
-    Left_until_middle,
     EnterLineFollow_3,
     Brake};
 
@@ -363,8 +365,8 @@ void handleRouteTest() {
   }
 }
 void handleMovement() {
-  // _logf("next movement: ");
-  // _log(currentSegmentIndex);
+  _logf("next movement: ");
+  _log(currentSegmentIndex);
   if (currentSegmentIndex >= min(_len(segments), _len(segMovements))) {
     stopServos();
     return;
@@ -378,7 +380,22 @@ void handleMovement() {
       break;
     case Left_ms_1:
       steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
-      delay(475);
+      delay(20);
+      steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
+      delay(20);
+      steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
+      delay(20);
+      steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
+      delay(20);
+      steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
+      delay(20);
+      steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
+      delay(375);
+      gotoNextSegment();
+      break;
+    case Left_ms_2:
+      steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
+      delay(600);
       gotoNextSegment();
       break;
     case Right:
@@ -528,6 +545,7 @@ void doSimpleLineFollow2() {
 
     delay(20);
   }
+  _log("doSimpleLineFollow2 end");
 }
 
 void doEnterLineFollow_1(double travelDis_cm) {
@@ -536,7 +554,7 @@ void doEnterLineFollow_1(double travelDis_cm) {
   while (running) {
     if (hasLine()) {
       // _log("hasLine");
-      delay(50);
+      delay(100);
       cross_count = 0;
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(475);
@@ -656,7 +674,7 @@ void doBrake() {
   brakeServo.writeMicroseconds(1150);
   delay(1000);
   stopServos();
-  delay(2000);
+  delay(3000);
 }
 // dis_test
 // void dis_test() {
