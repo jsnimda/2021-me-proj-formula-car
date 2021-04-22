@@ -150,9 +150,14 @@ size_t BLESerial::write(uint8_t c)
 {
     // write a character
     uint8_t _c = c;
-    pTxCharacteristic->setValue(&_c, 1);
-    pTxCharacteristic->notify();
-    delay(3); // bluetooth stack will go into congestion, if too many packets are sent
+    sendBuffer[sendBufferCount] = c;
+    sendBufferCount++;
+    if (sendBufferCount >= 20 || c == '\n') {
+        pTxCharacteristic->setValue((uint8_t*) sendBuffer, sendBufferCount);
+        pTxCharacteristic->notify();
+        sendBufferCount = 0;
+        // delay(3);
+    }
     return 1;
 }
 

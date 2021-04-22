@@ -43,6 +43,9 @@ class BLESerial: public Stream
         void flush();
         void end(void);
 
+        char sendBuffer[20];
+        int sendBufferCount = 0;
+
     private:
         String local_name;
         BLEServer *pServer = NULL;
