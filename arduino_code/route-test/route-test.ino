@@ -67,8 +67,10 @@ void vTaskCheckBle(void* pvParameters) {
 #define PIN_steer 19
 #define PIN_brake 18
 #define PIN_encoder 26
-int ir_array_count = 5;
-int PIN_ir_array[] = {13, 39, 14, 27, 25};
+const int ir_array_count = 5;
+// int PIN_ir_array[] = {13, 39, 14, 27, 25};
+int PIN_ir_array[] = {25, 27, 14, 39, 13};
+int ir_array_values[ir_array_count];
 
 // ============
 // Encoder
@@ -109,17 +111,24 @@ void updateEncoderDistance() {
 // sprintf(buffer, "the current value is %d", i++);
 
 // add this line in setup():
-//    xTaskCreate(vTaskStatusLogger, "vTaskLog", 5000, NULL, 1, NULL);
+//    xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
 void vTaskStatusLogger(void* pvParameters) {
   for (;;) {
     if (running) {
+      _logf("ir array:");
+      for (int i = 0; i < ir_array_count; i++) {
+        _logf(" ");
+        _logf(ir_array_values[i]);
+      }
+      _log();
+
       _logf("count: ");
       _log(encoderCount);
 
       _logf("dis: ");
       _log(distanceTranvelled_cm, 2);
     }
-    delay(50);
+    delay(150);
   }
 }
 
@@ -133,6 +142,53 @@ Servo propellerServo;
 Servo steerServo;
 Servo brakeServo;
 
+int steer_center_us = 1430;
+
+// ============
+// IR Array
+// ============
+
+// add this line in setup():
+//    xTaskCreate(vTaskIrArray, "vTaskIrArray", 5000, NULL, 1, NULL);
+void vTaskIrArray(void* pvParameters) {
+  for (;;) {
+    for (int i = 0; i < ir_array_count; i++) {
+      ir_array_values[i] = digitalRead(PIN_ir_array[i]);
+    }
+    delay(1);
+  }
+}
+
+// ============
+// Line Follow Manager
+// ============
+
+enum EnterDirection {
+  EnterLeft = -250,
+  EnterRight = 250,
+};
+class EnterLineFollowManager {
+};
+boolean hasLine() {
+  for (int i = 0; i < ir_array_count; i++) {
+    if (ir_array_values[i] == 1) {
+      return true;
+    }
+  }
+  return false;
+}
+void doEnterLineFollow(int direction, double travelDis_cm) {
+  while (running) {
+    if (hasLine()) {
+      steerServo.writeMicroseconds(steer_center_us + direction);
+      delay(1000);
+      doBrake();
+      running = false;
+    }
+    delay(1);
+  }
+}
+
 // ============
 // Route-test
 // ============
@@ -142,46 +198,54 @@ enum Movement {
   Left,
   Right,
   Stop,
-  Brake
+  Brake,
+  EnterLineFollow_left,
+  EnterLineFollow_right,
 };
 
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699, 37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
-double segments[] = {30, 20.934, 47.1, 10.989, 70.305, 10.699, 37.417, 26.452, 73.401};
-Movement segMovements[] = {Straight, Right, Straight, Brake};
+double segments[] = {30, 23.934, 32.1, 10.989, 70.305, 10.699, 37.417, 26.452, 73.401};
+Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_left, Brake};
 
 int currentSegmentIndex = 0;
-double acc_segments = 0;
+double seg_offset = 0;
 void handleRouteTest() {
-  if (currentSegmentIndex >= min(_len(segments),_len(segMovements))) {
+  if (currentSegmentIndex >= min(_len(segments), _len(segMovements))) {
     return;
   }
-  if (distanceTranvelled_cm >= acc_segments + segments[currentSegmentIndex]) {
-    acc_segments += segments[currentSegmentIndex];
+  if ((distanceTranvelled_cm - seg_offset) >= segments[currentSegmentIndex]) {
+    seg_offset += segments[currentSegmentIndex];  // will vary to acc segments when line following
     currentSegmentIndex++;
     handleMovement();
   }
 }
 void handleMovement() {
-  if (currentSegmentIndex >= min(_len(segments),_len(segMovements))) {
+  if (currentSegmentIndex >= min(_len(segments), _len(segMovements))) {
     stopServos();
     return;
   }
   switch (segMovements[currentSegmentIndex]) {
     case Straight:
-      steerServo.writeMicroseconds(1430);  // 1430, +-500 = 46.5 deg
+      steerServo.writeMicroseconds(steer_center_us);  // 1430, +-500 = 46.5 deg
       break;
     case Left:
-      steerServo.writeMicroseconds(930);  // 1430, +-500 = 46.5 deg
+      steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
       break;
     case Right:
-      steerServo.writeMicroseconds(1930);  // 1430, +-500 = 46.5 deg
+      steerServo.writeMicroseconds(steer_center_us + 500);  // 1430, +-500 = 46.5 deg
       break;
     case Stop:
       stopServos();
       break;
     case Brake:
       doBrake();
+      break;
+    case EnterLineFollow_left:
+      doEnterLineFollow(EnterDirection::EnterLeft, segments[currentSegmentIndex]);
+      break;
+    case EnterLineFollow_right:
+      doEnterLineFollow(EnterDirection::EnterRight, segments[currentSegmentIndex]);
       break;
   }
 }
@@ -204,7 +268,7 @@ void reset() {  // please follow setup
   distanceTranvelled_cm = 0;
 
   currentSegmentIndex = 0;
-  acc_segments = 0;
+  seg_offset = 0;
 }
 
 void setup() {
@@ -220,12 +284,13 @@ void setup() {
     pinMode(PIN_ir_array[i], INPUT);
   }
   xTaskCreate(vTaskEncoder, "vTaskEncoder", 1000, NULL, 1, NULL);
+  xTaskCreate(vTaskIrArray, "vTaskIrArray", 5000, NULL, 1, NULL);
   running = true;
 
 #ifdef _DEV_BLE_LOG
   bleSerial.begin("ESP32-ble-js");
   xTaskCreate(vTaskCheckBle, "vTaskCheckBle", 1000, NULL, 1, NULL);
-  xTaskCreate(vTaskStatusLogger, "vTaskLog", 5000, NULL, 1, NULL);
+  xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
   waitForBle();
 #endif
 }
@@ -248,7 +313,9 @@ void doBrake() {
 void start() {
   propellerServo.writeMicroseconds(1270);
   delay(200);
-  propellerServo.writeMicroseconds(1248);
+  propellerServo.writeMicroseconds(1250);
+  encoderCount = 0;
+  distanceTranvelled_cm = 0;
 }
 
 void loop() {

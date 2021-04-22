@@ -152,7 +152,7 @@ size_t BLESerial::write(uint8_t c)
     uint8_t _c = c;
     pTxCharacteristic->setValue(&_c, 1);
     pTxCharacteristic->notify();
-    delay(1); // bluetooth stack will go into congestion, if too many packets are sent
+    delay(3); // bluetooth stack will go into congestion, if too many packets are sent
     return 1;
 }
 
