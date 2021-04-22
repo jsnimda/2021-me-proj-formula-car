@@ -205,7 +205,7 @@ enum Movement {
 
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
-double segments[] = {30, 25.934, 42.1 - 10, 45.305 - 5, 23.699 - 5, 10, 38.401 + 20, 0, 100, 0, 17, 0, 100, 0};
+double segments[] = {30, 25.934, 42.1 - 10, 45.305 - 5, 23.699 - 5, 10, 38.401 + 20, 0, 100, 0, 20, 0, 100, 0};
 Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, Straight, EnterLineFollow_2, Brake_And_Go, UTurn, UTurnEnd, Straight, Left_until_middle, EnterLineFollow_3, Brake};
 
 int currentSegmentIndex = 0;
@@ -263,12 +263,14 @@ void handleMovement() {
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(200);
       while (ir_array_values[2] != 1) {
+        dirLine();
         delay(1);
       }
       steerServo.writeMicroseconds(steer_center_us);
       // seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
       // currentSegmentIndex++;
       // handleMovement();
+      dirLine();
       doEnterLineFollow_3();
       break;
     case EnterLineFollow_1:
@@ -381,7 +383,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
 
 void doEnterLineFollow_3() { // simpleLineFollow
   _log("doEnterLineFollow_3");
-  double target = distanceTranvelled_cm + 130;
+  double target = distanceTranvelled_cm + 80;
   steerServo.writeMicroseconds(steer_center_us);
   while (running && distanceTranvelled_cm < target) {
     if (distanceTranvelled_cm >= target) {
