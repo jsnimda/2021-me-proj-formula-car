@@ -4,6 +4,8 @@
 // ============
 
 boolean running = false;
+boolean disablePropeller = false;
+
 
 #define _len(x) (sizeof(x) / sizeof(x[0]))
 
@@ -18,11 +20,11 @@ boolean running = false;
 #include "BLESerial.h"
 
 #define _logf(...)              \
-  bleSerial.print(__VA_ARGS__); \
-  Serial.print(__VA_ARGS__);
+  Serial.print(__VA_ARGS__); bleSerial.print(__VA_ARGS__); \
+  
 #define _log(...)                 \
-  bleSerial.println(__VA_ARGS__); \
-  Serial.println(__VA_ARGS__);
+  Serial.println(__VA_ARGS__); bleSerial.println(__VA_ARGS__); \
+  
 
 // #define _logf(...) (void)0
 // #define _log(...) (void)0
@@ -86,7 +88,6 @@ double distanceTranvelled_cm = 0;
 double wheelDiameter_cm = 6.25;
 int countPerRevolution = 12;
 
-
 // sensors
 // add this line in setup():
 //    xTaskCreate(vTaskEncoder, "vTaskEncoder", 1000, NULL, 1, NULL);
@@ -135,25 +136,67 @@ void updateEncoderDistance() {
 /*
 find line, line is 1 to 2 ir thick: -2, -1, 0, 1, 2
 is not line: -30  (more than 1 to 2 ir thick)
+blank: -40
 line left from left: -20
 line left from right: 20
 */
 int where_is_line_last = -30;
 int where_is_line = -30;
+int cross_count = 0;
 
 void setWhere(int where) {
+  if (where != where_is_line) {
+    if (where_is_line >= -20) where_is_line_last = where_is_line;
+    where_is_line = where;
+  }
+}
 
+void findWhere() {
+  if (countLine(ir_array_values) == 0 && countLine(ir_array_values_last) == 1) {
+    if (ir_array_values_last[0] == 1) setWhere(-20);
+    if (ir_array_values_last[4] == 1) setWhere(20);
+    return;
+  }
+  if (countLine(ir_array_values) == 0) {
+    setWhere(-40);
+    return;
+  }
+  if (countLine(ir_array_values) == 1) {
+    if (ir_array_values[0] == 1) setWhere(-2);
+    if (ir_array_values[1] == 1) setWhere(-1);
+    if (ir_array_values[2] == 1) setWhere(0);
+    if (ir_array_values[3] == 1) setWhere(1);
+    if (ir_array_values[4] == 1) setWhere(2);
+    return;
+  }
+  if (countLine(ir_array_values) == 2) {
+    if (ir_array_values[0] == 1 && ir_array_values[1] == 1) setWhere(-2);
+    if (ir_array_values[1] == 1 && ir_array_values[2] == 1) setWhere(-1);
+    if (ir_array_values[2] == 1 && ir_array_values[3] == 1) setWhere(1);
+    if (ir_array_values[3] == 1 && ir_array_values[4] == 1) setWhere(2);
+    return;
+  }
+  setWhere(-30);
 }
 
 void analyzeIR() {
-  
+  findWhere();
+  checkCross();
+}
+
+void checkCross() {
+  if (countLine(ir_array_values) == 5 && countLine(ir_array_values_last) != 0 && countLine(ir_array_values_last) != 5) {
+    cross_count++;
+    _logf("cross_count: ");
+    _log(cross_count);
+  }
 }
 
 int countLine() {
-  return countLine(int[] ir_array_values);
+  return countLine(ir_array_values);
 }
 
-int countLine(int[] ir) {
+int countLine(int ir[]) {
   int c = 0;
   for (int i = 0; i < ir_array_count; i++) {
     if (ir[i] == 1) {
@@ -161,6 +204,10 @@ int countLine(int[] ir) {
     }
   }
   return c;
+}
+
+boolean hasLine() {
+  return countLine() > 0;
 }
 
 int lastDir = 0;
@@ -189,25 +236,32 @@ int dirLine() {
 
 // add this line in setup():
 //    xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
-// void vTaskStatusLogger(void* pvParameters) {
-//   for (;;) {
-//     if (running) {
-//       // _logf("ir array:");
-//       // for (int i = 0; i < ir_array_count; i++) {
-//       //   _logf(" ");
-//       //   _logf(ir_array_values[i]);
-//       // }
-//       // _log();
+void vTaskStatusLogger(void* pvParameters) {
+  for (;;) {
+    if (running) {
+      // _logf("ir array:");
+      // for (int i = 0; i < ir_array_count; i++) {
+      //   _logf(" ");
+      //   _logf(ir_array_values[i]);
+      // }
+      // _log();
 
-//       // _logf("count: ");
-//       // _log(encoderCount);
+      // _logf("count: ");
+      // _log(encoderCount);
 
-//       // _logf("dis: ");
-//       // _log(distanceTranvelled_cm, 2);
-//     }
-//     delay(150);
-//   }
-// }
+      // _logf("dis: ");
+      // _log(distanceTranvelled_cm, 2);
+      _logf("where_is_line_last: ");
+      _log(where_is_line_last);
+      _logf("where_is_line: ");
+      _log(where_is_line);
+      _logf("cross_count: ");
+      _log(cross_count);
+      _log("============");
+    }
+    delay(200);
+  }
+}
 
 // ============
 // Hardwares/Servos
@@ -245,38 +299,38 @@ enum Movement {
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
 double segments[] = {
-    30,                          //Straight
-    25.934,                          //Right
-    42.1 - 10,                          //Straight
-    45.305 - 15,                          //EnterLineFollow_1
+    30,           //Straight
+    25.934,       //Right
+    42.1 - 10,    //Straight
+    45.305 - 15,  //EnterLineFollow_1
     // 23.699 - 1,                          //Left
-    0,                          //Left ms
-    10,                          //Straight
-    38.401 + 15,                          //EnterLineFollow_2
-    0,                          //Brake_And_Go
-    100,                          //UTurn
-    0,                          //UTurnEnd
-    20,                          //Straight
-    0,                          //Left_until_middle
-    100,                          //EnterLineFollow_3
-    0};                          //Brake
+    0,            //Left ms
+    10,           //Straight
+    38.401 + 15,  //EnterLineFollow_2
+    0,            //Brake_And_Go
+    100,          //UTurn
+    0,            //UTurnEnd
+    20,           //Straight
+    0,            //Left_until_middle
+    100,          //EnterLineFollow_3
+    0};           //Brake
 Movement segMovements[] = {
-  Straight, 
-  Right, 
-  Straight, 
-  EnterLineFollow_1, 
-  // Left, 
-  Left_ms_1, 
-  Straight, 
-  EnterLineFollow_2, 
-  Brake_And_Go, 
-  UTurn, 
-  UTurnEnd, 
-  Straight, 
-  Brake_And_Stop,
-  Left_until_middle, 
-  EnterLineFollow_3, 
-  Brake};
+    Straight,
+    Right,
+    Straight,
+    EnterLineFollow_1,
+    // Left,
+    Left_ms_1,
+    Straight,
+    EnterLineFollow_2,
+    Brake_And_Go,
+    UTurn,
+    UTurnEnd,
+    Straight,
+    Brake_And_Stop,
+    Left_until_middle,
+    EnterLineFollow_3,
+    Brake};
 
 int currentSegmentIndex = 0;
 double seg_offset = 0;
@@ -334,6 +388,7 @@ void handleMovement() {
       steerServo.writeMicroseconds(steer_center_us + 550);  // 1430, +-500 = 46.5 deg
       break;
     case UTurnEnd:
+  if (disablePropeller) return;
       if (running) propellerServo.writeMicroseconds(1270);
       break;
     case Brake_And_Stop:
@@ -383,6 +438,7 @@ void doEnterLineFollow_1(double travelDis_cm) {
     if (hasLine()) {
       // _log("hasLine");
       delay(50);
+      cross_count = 0;
       steerServo.writeMicroseconds(steer_center_us - 500);
       delay(475);
       int init_pos = distanceTranvelled_cm;
@@ -407,6 +463,7 @@ void doEnterLineFollow_2(double travelDis_cm) {
   while (running) {
     if (hasLine()) {
       // _log("hasLine");
+      cross_count = 0;
       steerServo.writeMicroseconds(steer_center_us + 500);
       delay(550);
       int init_pos = distanceTranvelled_cm;
@@ -479,7 +536,7 @@ void setup() {
 
   bleSerial.begin("ESP32-ble-js");
 
-  xTaskCreate(vTaskEncoder, "vTaskEncoder", 1000, NULL, 1, NULL);
+  xTaskCreate(vTaskEncoder, "vTaskEncoder", 9000, NULL, 1, NULL);
   // xTaskCreate(vTaskIrArray, "vTaskIrArray", 1000, NULL, 1, NULL);
   running = true;
 
@@ -510,6 +567,7 @@ void restartPropeller() {
   restartPropeller(1270);
 }
 void restartPropeller(int b) {
+  if (disablePropeller) return;
   if (!running) return;
   propellerServo.writeMicroseconds(1400);
   delay(500);
