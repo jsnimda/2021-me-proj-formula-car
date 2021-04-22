@@ -341,8 +341,8 @@ Movement segMovements[] = {
     UTurnEnd,
     Straight,
     Left_ms_2,
-    Brake_And_Stop,
     EnterLineFollow_3,
+    Brake_And_Stop,
     Brake};
 
 int currentSegmentIndex = 0;
@@ -603,28 +603,55 @@ void doEnterLineFollow_2(double travelDis_cm) {
   }
 }
 
-void doEnterLineFollow_3() {  // simpleLineFollow
-  // _log("doEnterLineFollow_3");
-  double target = distanceTranvelled_cm + 80;
+void doEnterLineFollow_3() {
+  // _log("doEnterLineFollow_1");
   steerServo.writeMicroseconds(steer_center_us);
-  while (running && distanceTranvelled_cm < target) {
-    if (distanceTranvelled_cm >= target) {
-      // seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
-      // currentSegmentIndex++;
-      // handleMovement();
+  while (running) {
+    if (true) {
+      // _log("hasLine");
+      cross_count = 0;
+      steerServo.writeMicroseconds(steer_center_us - 500);
+      delay(275);
+      // logIR();
+      doSimpleLineFollow(115+15);
+      // int init_pos = distanceTranvelled_cm;
+      // steerServo.writeMicroseconds(steer_center_us);
+      // while (distanceTranvelled_cm - init_pos < travelDis_cm) {
+      //   delay(1);
+      // }
 
-      doBrake();
-      running = false;
+      gotoNextSegment();
+
+      // doBrake();
+      // running = false;
       return;
     }
-    int dd = dirLine();
-    if (dd == 0) steerServo.writeMicroseconds(steer_center_us);
-    if (dd == -1) steerServo.writeMicroseconds(steer_center_us - 200);
-    if (dd == 1) steerServo.writeMicroseconds(steer_center_us + 200);
-
     delay(1);
   }
 }
+
+// void doEnterLineFollow_3() {  // simpleLineFollow
+//   // _log("doEnterLineFollow_3");
+//   double target = distanceTranvelled_cm + 80;
+//   steerServo.writeMicroseconds(steer_center_us);
+//   while (running && distanceTranvelled_cm < target) {
+//     if (distanceTranvelled_cm >= target) {
+//       // seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
+//       // currentSegmentIndex++;
+//       // handleMovement();
+
+//       doBrake();
+//       running = false;
+//       return;
+//     }
+//     int dd = dirLine();
+//     if (dd == 0) steerServo.writeMicroseconds(steer_center_us);
+//     if (dd == -1) steerServo.writeMicroseconds(steer_center_us - 200);
+//     if (dd == 1) steerServo.writeMicroseconds(steer_center_us + 200);
+
+//     delay(1);
+//   }
+// }
 
 // ============
 // Main
