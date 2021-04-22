@@ -175,6 +175,7 @@ enum Movement {
   Right,
   Stop,
   Brake,
+  Brake_And_Go,
   Brake_And_Stop,
   EnterLineFollow_1,
   EnterLineFollow_2,
@@ -184,8 +185,8 @@ enum Movement {
 
 // double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
 // Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
-double segments[] = {30, 25.934, 42.1, 60.305, 13.699, 20.401, 0, 110, 0};
-Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, EnterLineFollow_2, Brake, Right, Brake};
+double segments[] = {30, 25.934, 42.1, 60.305, 20.699, 15.401, 0, 110, 0};
+Movement segMovements[] = {Straight, Right, Straight, EnterLineFollow_1, Left, EnterLineFollow_2, Brake_And_Go, Right, Brake};
 
 int currentSegmentIndex = 0;
 double seg_offset = 0;
@@ -222,17 +223,26 @@ void handleMovement() {
     case Brake:
       doBrake();
       break;
+    case Brake_And_Go:
+      doBrake();
+      seg_offset = distanceTranvelled_cm;
+      restartPropeller();
+      break;
     case UTurn:
       steerServo.writeMicroseconds(steer_center_us + 500);  // 1430, +-500 = 46.5 deg
       break;
     case Brake_And_Stop:
       doBrake();
       running = false;
+      break;
     case EnterLineFollow_1:
       doEnterLineFollow_1(segments[currentSegmentIndex]);
       break;
     case EnterLineFollow_2:
       doEnterLineFollow_2(segments[currentSegmentIndex]);
+      break;
+    case EnterLineFollow_3:
+      doEnterLineFollow_3(segments[currentSegmentIndex]);
       break;
   }
 }
@@ -284,7 +294,31 @@ void doEnterLineFollow_2(double travelDis_cm) {
   while (running) {
     if (hasLine()) {
       steerServo.writeMicroseconds(steer_center_us + 250);
-      delay(650);
+      delay(600);
+      int init_pos = distanceTranvelled_cm;
+      steerServo.writeMicroseconds(steer_center_us);
+      while (distanceTranvelled_cm - init_pos < travelDis_cm) {
+        delay(1);
+      }
+
+      seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
+      currentSegmentIndex++;
+      handleMovement();
+
+      // doBrake();
+      // running = false;
+      return;
+    }
+    delay(1);
+  }
+}
+
+void doEnterLineFollow_3(double travelDis_cm) {
+  steerServo.writeMicroseconds(steer_center_us);
+  while (running) {
+    if (hasLine()) {
+      steerServo.writeMicroseconds(steer_center_us + 250);
+      delay(600);
       int init_pos = distanceTranvelled_cm;
       steerServo.writeMicroseconds(steer_center_us);
       while (distanceTranvelled_cm - init_pos < travelDis_cm) {
@@ -359,10 +393,14 @@ void doBrake() {
 //   }
 // }
 
-void start() {
+void restartPropeller() {
   propellerServo.writeMicroseconds(1350);
   delay(300);
   propellerServo.writeMicroseconds(1268);
+}
+
+void start() {
+  restartPropeller();
   encoderCount = 0;
   distanceTranvelled_cm = 0;
 }
