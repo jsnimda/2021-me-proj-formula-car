@@ -12,6 +12,26 @@ boolean disablePropeller = false;
 #define _len(x) (sizeof(x) / sizeof(x[0]))
 
 // ============
+// Button On/Off
+// ============
+
+int on_led_last = 0;
+int on_led = 0;  // 0 = on, 1 = off
+boolean use_led = false;
+int check_led() {
+  on_led_last = on_led;
+  on_led = !digitalRead(4);
+  if (on_led_last == 0 && on_led == 1) return true;
+  else return false;
+}
+
+int check_led_off() {
+  check_led();
+  if (on_led_last == 1 && on_led == 0) return true;
+  else return false;
+}
+
+// ============
 // BLE terminal
 // ============
 
@@ -35,9 +55,13 @@ boolean disablePropeller = false;
 BLESerial bleSerial;
 void waitForBle() {
   running = false;
-  while (!bleSerial.connected()) {
+  while (!bleSerial.connected() && !check_led()) {
     Serial.println("waiting for ble terminal to connect...");
     delay(1000);
+  }
+  if (on_led) {
+    use_led = true;
+    delay(2000);
   }
   _log("ESP32 ble terminal connected!");
   _log("After one second I will start!");
@@ -50,11 +74,16 @@ void waitForBle() {
 void vTaskCheckBle(void* pvParameters) {
   for (;;) {
     if (running) {
-      if (!bleSerial.connected()) {
+      if ((!bleSerial.connected() && use_led == false) || (check_led_off() && use_led == true)) {
         running = false;
         reset();
         waitForBle();
       }
+      // if (get_on() == 1 && use_ble == false) {
+      //   running = false;
+      //   reset();
+      //   waitForBle();
+      // }
       delay(1);
     } else {
       delay(1000);
@@ -100,7 +129,7 @@ void vTaskEncoder(void* pvParameters) {
   for (;;) {
     // ble
     if (running) {
-      if (!bleSerial.connected()) {
+      if ((!bleSerial.connected() && use_led == false) || (check_led_off() && use_led == true)) {
         running = false;
         reset();
         waitForBle();
@@ -744,6 +773,10 @@ void setup() {
   for (int i = 0; i < ir_array_count; i++) {
     pinMode(PIN_ir_array[i], INPUT);
   }
+
+  pinMode(4, INPUT_PULLUP);
+  on_led = !digitalRead(4);
+  on_led_last = on_led;
 
   bleSerial.begin("ESP32-ble-js");
 
