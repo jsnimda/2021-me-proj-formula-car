@@ -3,13 +3,16 @@
         {
             "name": "Win32",
             "includePath": [
-                "C:\\Users\\chowc\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\**",
-                "C:\\Users\\chowc\\Documents\\Arduino\\libraries\\**",
+                "${env:LOCALAPPDATA}\\Arduino15\\packages\\esp32\\tools\\**",
+                "${env:USERPROFILE}\\Documents\\Arduino\\libraries\\**",
                 "C:\\Program Files (x86)\\Arduino\\libraries\\**",
-                "C:\\Users\\chowc\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.6\\**"
+                "${env:LOCALAPPDATA}\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.6\\**"
             ],
             "forcedInclude": [
-                "C:\\Users\\chowc\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.6\\cores\\esp32\\Arduino.h"
+                "${env:LOCALAPPDATA}\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.6\\cores\\esp32\\Arduino.h",
+                "${env:LOCALAPPDATA}\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.6\\tools\\sdk\\include\\esp32\\esp_task_wdt.h",
+                "${env:LOCALAPPDATA}\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.6\\tools\\sdk\\include\\freertos\\freertos\\task.h",
+                "${env:LOCALAPPDATA}\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.6\\tools\\sdk\\include\\freertos\\freertos\\FreeRTOS.h"
             ],
             "defines": [
                 "USBCON"
