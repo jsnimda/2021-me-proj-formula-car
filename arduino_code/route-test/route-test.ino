@@ -326,7 +326,7 @@ double segments[] = {
     30,           //Straight
     25.934,       //Right
     42.1 - 10,    //Straight
-    45.305 - 15,  //EnterLineFollow_1
+    45.305 - 15 + 5,  //EnterLineFollow_1
     // 23.699 - 1,                          //Left
     0,            //Left ms
     10,           //Straight
@@ -335,7 +335,7 @@ double segments[] = {
     2+6,  // Straight
     110,          //UTurn
     0,            //UTurnEnd
-    3,           //Straight
+    // 3,           //Straight
     0,            //Left_ms_2
     0,          //EnterLineFollow_3
     0};           //Brake
@@ -352,7 +352,7 @@ Movement segMovements[] = {
     Straight,
     UTurn,
     UTurnEnd,
-    Straight,
+    // Straight,
     Left_ms_2,
     EnterLineFollow_3,
     Brake_And_Stop,
@@ -482,8 +482,8 @@ int getDir() {
   return 0;
 }
 
-#define deflect_1 100
-#define deflect_2 100
+#define deflect_1 50
+#define deflect_2 80
 #define deflect_3 100
 
 // void doSimpleLineFollow(double travelDis_cm,int line)
@@ -561,7 +561,7 @@ void doSimpleLineFollow(double travelDis_cm) {
 
     // if (ir_array_values[4] == 1) logIR();
 
-    delay(20);
+    delay(1);
   }
   _log("doSimpleLineFollow end");
 }
@@ -604,7 +604,7 @@ void doSimpleLineFollow2() {
 
     // if (ir_array_values[4] == 1) logIR();
 
-    delay(20);
+    delay(1);
   }
   _log("doSimpleLineFollow2 end");
 }
@@ -761,6 +761,8 @@ void setup() {
 void doBrake() {
   //ref stopServos
   propellerServo.writeMicroseconds(1000);
+  steerServo.writeMicroseconds(steer_center_us);
+  // brakeServo.writeMicroseconds(1150);
   brakeServo.writeMicroseconds(1150);
   delay(1000);
   stopServos();
