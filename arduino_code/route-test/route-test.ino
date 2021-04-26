@@ -47,14 +47,18 @@ boolean use_led = false;
 int check_led() {
   on_led_last = on_led;
   on_led = !digitalRead(4);
-  if (on_led_last == 0 && on_led == 1) return true;
-  else return false;
+  if (on_led_last == 0 && on_led == 1)
+    return true;
+  else
+    return false;
 }
 
 int check_led_off() {
   check_led();
-  if (on_led_last == 1 && on_led == 0) return true;
-  else return false;
+  if (on_led_last == 1 && on_led == 0)
+    return true;
+  else
+    return false;
 }
 
 // ============
@@ -277,14 +281,12 @@ boolean hasLine() {
 // sprintf(buffer, "the current value is %d", i++);
 
 void logIR() {
-  
-      _logf("ir array:");
-      for (int i = 0; i < ir_array_count; i++) {
-        _logf(" ");
-        _logf(ir_array_values[i]);
-      }
-      _log();
-
+  _logf("ir array:");
+  for (int i = 0; i < ir_array_count; i++) {
+    _logf(" ");
+    _logf(ir_array_values[i]);
+  }
+  _log();
 }
 // add this line in setup():
 //    xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
@@ -337,20 +339,20 @@ enum Movement {
 };
 
 double segments[] = {
-    30,           //Straight
-    25.934,       //Right
-    42.1 - 10,    //Straight
+    30,               //Straight
+    25.934,           //Right
+    42.1 - 10,        //Straight
     45.305 - 15 + 5,  //EnterLineFollow_1
-    0,            //Left ms
-    10,           //Straight
-    38.401 + 15,  //EnterLineFollow_2
-    0,            //Brake_And_Go
-    2+6,  // Straight
-    110,          //UTurn
-    0,            //UTurnEnd
-    0,            //Left_ms_2
-    0,          //EnterLineFollow_3
-    0};           //Brake
+    0,                //Left ms
+    10,               //Straight
+    38.401 + 15,      //EnterLineFollow_2
+    0,                //Brake_And_Go
+    2 + 6,            // Straight
+    110,              //UTurn
+    0,                //UTurnEnd
+    0,                //Left_ms_2
+    0,                //EnterLineFollow_3
+    0};               //Brake
 Movement segMovements[] = {
     Straight,
     Right,
@@ -630,7 +632,7 @@ void doEnterLineFollow_3() {
       steerServo.writeMicroseconds(steer_center_us);
       delay(100);
       // logIR();
-      doSimpleLineFollow(115+15+15);
+      doSimpleLineFollow(115 + 15 + 15);
       // int init_pos = distanceTranvelled_cm;
       // steerServo.writeMicroseconds(steer_center_us);
       // while (distanceTranvelled_cm - init_pos < travelDis_cm) {
