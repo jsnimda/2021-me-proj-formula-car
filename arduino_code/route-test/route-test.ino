@@ -252,24 +252,6 @@ boolean hasLine() {
   return countLine() > 0;
 }
 
-int lastDir = 0;
-
-int dirLine() {
-  int c = countLine();
-  if (c == 0) return lastDir;
-  if (c != 1) return 0;
-  if (ir_array_values[0] == 1 || ir_array_values[1] == 1) {
-    lastDir = -1;
-    return lastDir;
-  }
-  if (ir_array_values[3] == 1 || ir_array_values[4] == 1) {
-    lastDir = 1;
-    return lastDir;
-  }
-  lastDir = 0;
-  return lastDir;
-}
-
 // ============
 // Status logger
 // ============
@@ -344,19 +326,15 @@ enum Movement {
   EnterLineFollow_1,
   EnterLineFollow_2,
   EnterLineFollow_3,
-  Left_until_middle,
   UTurn,
   UTurnEnd,
 };
 
-// double segments[] = {30, 26.934, 47.1, 10.989, 70.305, 10.699,               37.417, 26.452, 73.401};
-// Movement segMovements[] = {Straight, Right, Straight, Left, Straight, Left, Straight, Right, Straight};
 double segments[] = {
     30,           //Straight
     25.934,       //Right
     42.1 - 10,    //Straight
     45.305 - 15 + 5,  //EnterLineFollow_1
-    // 23.699 - 1,                          //Left
     0,            //Left ms
     10,           //Straight
     38.401 + 15,  //EnterLineFollow_2
@@ -364,7 +342,6 @@ double segments[] = {
     2+6,  // Straight
     110,          //UTurn
     0,            //UTurnEnd
-    // 3,           //Straight
     0,            //Left_ms_2
     0,          //EnterLineFollow_3
     0};           //Brake
@@ -373,7 +350,6 @@ Movement segMovements[] = {
     Right,
     Straight,
     EnterLineFollow_1,
-    // Left,
     Left_ms_1,
     Straight,
     EnterLineFollow_2,
@@ -381,7 +357,6 @@ Movement segMovements[] = {
     Straight,
     UTurn,
     UTurnEnd,
-    // Straight,
     Left_ms_2,
     EnterLineFollow_3,
     Brake_And_Stop,
@@ -469,21 +444,6 @@ void handleMovement() {
       doBrake();
       running = false;
       break;
-    case Left_until_middle:
-      // _log("Left_until_middle");
-      steerServo.writeMicroseconds(steer_center_us - 500);
-      delay(200);
-      while (ir_array_values[2] != 1) {
-        dirLine();
-        delay(1);
-      }
-      steerServo.writeMicroseconds(steer_center_us);
-      // seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
-      // currentSegmentIndex++;
-      // handleMovement();
-      dirLine();
-      doEnterLineFollow_3();
-      break;
     case EnterLineFollow_1:
       doEnterLineFollow_1(segments[currentSegmentIndex]);
       break;
@@ -515,47 +475,6 @@ int getDir() {
 #define deflect_2 80
 #define deflect_3 100
 
-// void doSimpleLineFollow(double travelDis_cm,int line)
-// {
-//   int init_pos = distanceTranvelled_cm;
-//    int target = 999999999;
-//    if(line != 2){target= travelDis_cm;init_pos=0;}
-   
-//   while (distanceTranvelled_cm - init_pos< target) {
-//     if (target == 999999999 && cross_count == 2) {
-//       target = distanceTranvelled_cm + 15;
-//     }
-//     switch (dir) {
-//       case -20:
-//         us = steer_center_us - deflect_3;
-//         break;
-//       case -2:
-//         us = steer_center_us - deflect_2;
-//         break;
-//       case -1:
-//         us = steer_center_us - deflect_1;
-//         break;
-//       case 0:
-//         us = steer_center_us;
-//         break;
-//       case 1:
-//         us = steer_center_us + deflect_1;
-//         break;
-//       case 2:
-//         us = steer_center_us + deflect_2;
-//         break;
-//       case 20:
-//         us = steer_center_us + deflect_3;
-//         break;
-//     }
-//     steerServo.writeMicroseconds(us);
-
-//     // if (ir_array_values[4] == 1) logIR();
-
-//     delay(20);
-//   }
- 
-// }
 void doSimpleLineFollow(double travelDis_cm) {
   go_off = -30;
   _log("doSimpleLineFollow");
@@ -722,29 +641,6 @@ void doEnterLineFollow_3() {
   }
 }
 
-// void doEnterLineFollow_3() {  // simpleLineFollow
-//   // _log("doEnterLineFollow_3");
-//   double target = distanceTranvelled_cm + 80;
-//   steerServo.writeMicroseconds(steer_center_us);
-//   while (running && distanceTranvelled_cm < target) {
-//     if (distanceTranvelled_cm >= target) {
-//       // seg_offset = distanceTranvelled_cm;  // will vary to acc segments when line following
-//       // currentSegmentIndex++;
-//       // handleMovement();
-
-//       doBrake();
-//       running = false;
-//       return;
-//     }
-//     int dd = dirLine();
-//     if (dd == 0) steerServo.writeMicroseconds(steer_center_us);
-//     if (dd == -1) steerServo.writeMicroseconds(steer_center_us - 200);
-//     if (dd == 1) steerServo.writeMicroseconds(steer_center_us + 200);
-
-//     delay(1);
-//   }
-// }
-
 // ============
 // Main
 // ============
@@ -801,13 +697,6 @@ void doBrake() {
   stopServos();
   delay(3000);
 }
-// dis_test
-// void dis_test() {
-//   if (distanceTranvelled_cm >= 300) {
-//     doBrake();
-//     running = false;
-//   }
-// }
 
 void restartPropeller() {
   restartPropeller(DEFAULT_propeller_us);
@@ -830,7 +719,6 @@ void loop() {
   // put your main code here, to run repeatedly:
   if (running) {
     handleRouteTest();
-    // dis_test();
   }
   delay(1);
 }
