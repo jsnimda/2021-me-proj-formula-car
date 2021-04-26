@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Win32",
+            "name": "ESP32",
             "includePath": [
                 "${env:LOCALAPPDATA}\\Arduino15\\packages\\esp32\\tools\\**",
                 "${env:USERPROFILE}\\Documents\\Arduino\\libraries\\**",
@@ -17,9 +17,9 @@
             "defines": [
                 "USBCON"
             ],
-            "intelliSenseMode": "windows-msvc-x64",
-            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2017/Professional/VC/Tools/MSVC/14.16.27023/bin/Hostx64/x64/cl.exe",
-            "cStandard": "c17",
+            "intelliSenseMode": "windows-gcc-x86",
+            "compilerPath": "${env:LOCALAPPDATA}\\Arduino15\\packages\\esp32\\tools\\xtensa-esp32-elf-gcc\\1.22.0-97-gc752ad5-5.2.0\\bin\\xtensa-esp32-elf-gcc.exe",
+            "cStandard": "c11",
             "cppStandard": "c++17"
         }
     ],
