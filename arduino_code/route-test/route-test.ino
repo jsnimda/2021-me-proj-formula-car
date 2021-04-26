@@ -3,12 +3,20 @@
 // Global constants
 // ============
 
-#define _DEV_BLE_LOG
+// define ENABLE_BLE for ble launch and print out
+#define ENABLE_BLE
 
+// default speed for straight walk, faster speed for sharp turn
 #define DEFAULT_propeller_us 1265
 #define FASTER_propeller_us 1275
+#define OVERCOME_STATIC_propeller_us 1400
 
-int steer_center_us = 1430;
+// servo brake us, brake 1150, release 1500
+#define BRAKE_us 1150
+
+const int steer_center_us = 1430;
+
+#define TASK_STACK_SIZE 8192
 
 // ============
 // Global variables
@@ -26,10 +34,11 @@ boolean disablePropeller = false;
 #define PIN_brake 18
 #define PIN_encoder 26
 const int ir_array_count = 5;
-// int PIN_ir_array[] = {13, 39, 14, 27, 25};
 int PIN_ir_array[] = {25, 27, 14, 39, 13};
 int ir_array_values_last[ir_array_count];
-int ir_array_values[ir_array_count];
+int ir_array_values[ir_array_count];  // readings from ir array
+
+#define PIN_on_off_btn 4
 
 // ============
 // Helper macros
@@ -37,16 +46,40 @@ int ir_array_values[ir_array_count];
 
 #define _len(x) (sizeof(x) / sizeof(x[0]))
 
+#ifdef ENABLE_BLE
+#define _logf(...)           \
+  Serial.print(__VA_ARGS__); \
+  bleSerial.print(__VA_ARGS__);
+
+#define _log(...)              \
+  Serial.println(__VA_ARGS__); \
+  bleSerial.println(__VA_ARGS__);
+
+#else
+#define _logf(...) Serial.print(__VA_ARGS__);
+#define _log(...) Serial.println(__VA_ARGS__);
+#endif
+
 // ============
-// Button On/Off
+// Physical On/Off Button
 // ============
 
+// TODO: replace with attachInterrupt()
+
+// on/off button with led
+// led on = 1 = start race, led off = 0 = stop race
+// for digitalRead, 0 = led on, 1 = led off
 int on_led_last = 0;
-int on_led = 0;  // 0 = on, 1 = off
-boolean use_led = false;
+int on_led = 0;  // 1 = led on, 0 = led off
+void setup_on_off_button() {
+  pinMode(PIN_on_off_btn, INPUT_PULLUP);
+  on_led = !digitalRead(PIN_on_off_btn);
+  on_led_last = on_led;
+}
+
 int check_led() {
   on_led_last = on_led;
-  on_led = !digitalRead(4);
+  on_led = !digitalRead(PIN_on_off_btn);
   if (on_led_last == 0 && on_led == 1)
     return true;
   else
@@ -65,62 +98,78 @@ int check_led_off() {
 // BLE terminal
 // ============
 
-#ifdef _DEV_BLE_LOG
-
-//library: https://github.com/iot-bus/BLESerial
+#ifdef ENABLE_BLE
+// library modified, ref: https://github.com/iot-bus/BLESerial
 #include "BLESerial.h"
-
-#define _logf(...)           \
-  Serial.print(__VA_ARGS__); \
-  bleSerial.print(__VA_ARGS__);
-
-#define _log(...)              \
-  Serial.println(__VA_ARGS__); \
-  bleSerial.println(__VA_ARGS__);
-
+// add to setup():
+//    bleSerial.begin("ESP32-ble-js");
 BLESerial bleSerial;
-void waitForBle() {
+#endif
+
+// ============
+// Race Start/Stop Manager
+// ============
+
+boolean use_led = false;  // indicate use ble or use led to start race
+
+void startRace() {
+  // launchPropeller();
+  resetDisplacement();
+  running = true;
+  launchPropeller();
+}
+
+void stopRace() {
+  // use abort() to force restart the whole ESP32
   running = false;
-  while (!bleSerial.connected() && !check_led()) {
+  stopServos();
+  abort();
+}
+
+boolean hasStartRaceSignal() {
+#ifdef ENABLE_BLE
+  return bleSerial.connected() || check_led();
+#else
+  return check_led();
+#endif
+}
+
+boolean hasStopRaceSignal() {
+#ifdef ENABLE_BLE
+  if (use_led) {
+    return check_led_off();
+  } else {
+    return !bleSerial.connected();
+  }
+#else
+  return check_led_off();
+#endif
+}
+
+void waitForStart() {  // waitForBle
+  // wait for ble connect or button pressed
+  running = false;
+  while (!hasStartRaceSignal()) {
+#ifdef ENABLE_BLE
     Serial.println("waiting for ble terminal to connect...");
+#else
+    Serial.println("waiting for on off button to start...");
+#endif
     delay(1000);
   }
   if (on_led) {
     use_led = true;
-    delay(2000);
+    _log("On/off button pressed!");
   }
-  _log("ESP32 ble terminal connected!");
-  _log("After one second I will start!");
-  running = true;
-  delay(1000);
-  start();
-}
-// add this line in setup():
-//    xTaskCreate(vTaskCheckBle, "vTaskCheckBle", 1000, NULL, 1, NULL);
-void vTaskCheckBle(void* pvParameters) {
-  for (;;) {
-    if (running) {
-      if ((!bleSerial.connected() && use_led == false) || (check_led_off() && use_led == true)) {
-        running = false;
-        reset();
-        waitForBle();
-      }
-      // if (get_on() == 1 && use_ble == false) {
-      //   running = false;
-      //   reset();
-      //   waitForBle();
-      // }
-      delay(1);
-    } else {
-      delay(1000);
-    }
+#ifdef ENABLE_BLE
+  else {
+    _log("ESP32 ble terminal connected!");
   }
-}
-
-#else
-#define _logf(...) Serial.print(__VA_ARGS__);
-#define _log(...) Serial.println(__VA_ARGS__);
 #endif
+  _log("After one second I will start!");
+  delay(1000);
+  startRace();
+}
 
 // ============
 // Hardwares/Servos
@@ -142,19 +191,16 @@ double distanceTranvelled_cm = 0;
 double wheelDiameter_cm = 6.25;
 int countPerRevolution = 12;
 
-// sensors
 // add this line in setup():
-//    xTaskCreate(vTaskEncoder, "vTaskEncoder", 1000, NULL, 1, NULL);
-void vTaskEncoder(void* pvParameters) {
+//    xTaskCreate(vTaskSensorLoop, "vTaskSensorLoop", TASK_STACK_SIZE, NULL, 1, NULL);
+void vTaskSensorLoop(void* pvParameters) {
   int last = 1;
   unsigned long long lastTime = 0;
   for (;;) {
-    // ble
+    // check ble disconnected or led turned off
     if (running) {
-      if ((!bleSerial.connected() && use_led == false) || (check_led_off() && use_led == true)) {
-        running = false;
-        reset();
-        waitForBle();
+      if (hasStopRaceSignal()) {
+        stopRace();
       }
     }
 
@@ -439,7 +485,7 @@ void handleMovement() {
     case Brake_And_Go:  // u turn afterwards
       doBrake();
       seg_offset = distanceTranvelled_cm;
-      if (running) restartPropeller(FASTER_propeller_us);
+      if (running) launchPropeller(FASTER_propeller_us);
       break;
     case UTurn:
       steerServo.writeMicroseconds(steer_center_us + 550);  // 1430, +-500 = 46.5 deg
@@ -462,11 +508,6 @@ void handleMovement() {
       doEnterLineFollow_3();
       break;
   }
-}
-void stopServos() {
-  propellerServo.writeMicroseconds(1000);
-  steerServo.writeMicroseconds(1430);  // 1430, +-500 = 46.5 deg
-  brakeServo.writeMicroseconds(1500);
 }
 
 // ============
@@ -653,11 +694,24 @@ void doEnterLineFollow_3() {
 // Main
 // ============
 
-void reset() {  // please follow setup
+void stopServos() {
   propellerServo.writeMicroseconds(1000);
-  steerServo.writeMicroseconds(1430);  // 1430, +-500 = 46.5 deg
+  steerServo.writeMicroseconds(steer_center_us);  // 1430, +-500 = 46.5 deg
   brakeServo.writeMicroseconds(1500);
+}
 
+void launchPropeller() {
+  launchPropeller(DEFAULT_propeller_us);
+}
+void launchPropeller(int continuous_us) {
+  if (disablePropeller) return;
+  if (!running) return;
+  propellerServo.writeMicroseconds(OVERCOME_STATIC_propeller_us);
+  delay(500);
+  propellerServo.writeMicroseconds(continuous_us);
+}
+
+void resetDisplacement() {
   encoderCount = 0;
   distanceTranvelled_cm = 0;
 
@@ -669,28 +723,10 @@ void doBrake() {
   //ref stopServos
   propellerServo.writeMicroseconds(1000);
   steerServo.writeMicroseconds(steer_center_us);
-  // brakeServo.writeMicroseconds(1150);
-  brakeServo.writeMicroseconds(1150);
+  brakeServo.writeMicroseconds(BRAKE_us);
   delay(1000);
   stopServos();
   delay(3000);
-}
-
-void restartPropeller() {
-  restartPropeller(DEFAULT_propeller_us);
-}
-void restartPropeller(int b) {
-  if (disablePropeller) return;
-  if (!running) return;
-  propellerServo.writeMicroseconds(1400);
-  delay(500);
-  propellerServo.writeMicroseconds(b);
-}
-
-void start() {
-  restartPropeller();
-  encoderCount = 0;
-  distanceTranvelled_cm = 0;
 }
 
 // ============
@@ -698,37 +734,33 @@ void start() {
 // ============
 
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(115200);
+
+  // setup servos, encoder, ir array
   propellerServo.attach(PIN_fan, 500, 2500);
   steerServo.attach(PIN_steer, 500, 2500);
   brakeServo.attach(PIN_brake, 500, 2500);
-  reset();
+  stopServos();
 
   pinMode(PIN_encoder, INPUT);
   for (int i = 0; i < ir_array_count; i++) {
     pinMode(PIN_ir_array[i], INPUT);
   }
 
-  pinMode(4, INPUT_PULLUP);
-  on_led = !digitalRead(4);
-  on_led_last = on_led;
+  // setup on off button
+  setup_on_off_button();
 
+#ifdef ENABLE_BLE
   bleSerial.begin("ESP32-ble-js");
-
-  xTaskCreate(vTaskEncoder, "vTaskEncoder", 9000, NULL, 1, NULL);
-  // xTaskCreate(vTaskIrArray, "vTaskIrArray", 1000, NULL, 1, NULL);
-  running = true;
-
-#ifdef _DEV_BLE_LOG
-  // xTaskCreate(vTaskCheckBle, "vTaskCheckBle", 1000, NULL, 1, NULL);
-  // xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
-  waitForBle();
 #endif
+
+  xTaskCreate(vTaskSensorLoop, "vTaskSensorLoop", TASK_STACK_SIZE, NULL, 1, NULL);
+  // xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
+
+  waitForStart();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
   if (running) {
     handleRouteTest();
   }
