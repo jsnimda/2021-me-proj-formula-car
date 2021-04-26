@@ -1,13 +1,39 @@
 
 // ============
-// Monitor variables
+// Global constants
+// ============
+
+#define _DEV_BLE_LOG
+
+#define DEFAULT_propeller_us 1265
+#define FASTER_propeller_us 1275
+
+int steer_center_us = 1430;
+
+// ============
+// Global variables
 // ============
 
 boolean running = false;
 boolean disablePropeller = false;
 
-#define DEFAULT_propeller_us 1265
-#define FASTER_propeller_us 1275
+// ============
+// Pin definitions
+// ============
+
+#define PIN_fan 23
+#define PIN_steer 19
+#define PIN_brake 18
+#define PIN_encoder 26
+const int ir_array_count = 5;
+// int PIN_ir_array[] = {13, 39, 14, 27, 25};
+int PIN_ir_array[] = {25, 27, 14, 39, 13};
+int ir_array_values_last[ir_array_count];
+int ir_array_values[ir_array_count];
+
+// ============
+// Helper macros
+// ============
 
 #define _len(x) (sizeof(x) / sizeof(x[0]))
 
@@ -35,7 +61,6 @@ int check_led_off() {
 // BLE terminal
 // ============
 
-#define _DEV_BLE_LOG
 #ifdef _DEV_BLE_LOG
 
 //library: https://github.com/iot-bus/BLESerial
@@ -48,9 +73,6 @@ int check_led_off() {
 #define _log(...)              \
   Serial.println(__VA_ARGS__); \
   bleSerial.println(__VA_ARGS__);
-
-// #define _logf(...) (void)0
-// #define _log(...) (void)0
 
 BLESerial bleSerial;
 void waitForBle() {
@@ -97,18 +119,14 @@ void vTaskCheckBle(void* pvParameters) {
 #endif
 
 // ============
-// Pin definitions
+// Hardwares/Servos
 // ============
 
-#define PIN_fan 23
-#define PIN_steer 19
-#define PIN_brake 18
-#define PIN_encoder 26
-const int ir_array_count = 5;
-// int PIN_ir_array[] = {13, 39, 14, 27, 25};
-int PIN_ir_array[] = {25, 27, 14, 39, 13};
-int ir_array_values_last[ir_array_count];
-int ir_array_values[ir_array_count];
+// do servo.attach() in setup!!
+#include <ESP32Servo.h>
+Servo propellerServo;
+Servo steerServo;
+Servo brakeServo;
 
 // ============
 // Encoder, IR Arrays
@@ -296,18 +314,6 @@ void vTaskStatusLogger(void* pvParameters) {
     delay(200);
   }
 }
-
-// ============
-// Hardwares/Servos
-// ============
-
-// do servo.attach() in setup!!
-#include <ESP32Servo.h>
-Servo propellerServo;
-Servo steerServo;
-Servo brakeServo;
-
-int steer_center_us = 1430;
 
 // ============
 // Route-test
@@ -657,6 +663,38 @@ void reset() {  // please follow setup
   seg_offset = 0;
 }
 
+void doBrake() {
+  //ref stopServos
+  propellerServo.writeMicroseconds(1000);
+  steerServo.writeMicroseconds(steer_center_us);
+  // brakeServo.writeMicroseconds(1150);
+  brakeServo.writeMicroseconds(1150);
+  delay(1000);
+  stopServos();
+  delay(3000);
+}
+
+void restartPropeller() {
+  restartPropeller(DEFAULT_propeller_us);
+}
+void restartPropeller(int b) {
+  if (disablePropeller) return;
+  if (!running) return;
+  propellerServo.writeMicroseconds(1400);
+  delay(500);
+  propellerServo.writeMicroseconds(b);
+}
+
+void start() {
+  restartPropeller();
+  encoderCount = 0;
+  distanceTranvelled_cm = 0;
+}
+
+// ============
+// setup() and loop()
+// ============
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -685,34 +723,6 @@ void setup() {
   // xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
   waitForBle();
 #endif
-}
-
-void doBrake() {
-  //ref stopServos
-  propellerServo.writeMicroseconds(1000);
-  steerServo.writeMicroseconds(steer_center_us);
-  // brakeServo.writeMicroseconds(1150);
-  brakeServo.writeMicroseconds(1150);
-  delay(1000);
-  stopServos();
-  delay(3000);
-}
-
-void restartPropeller() {
-  restartPropeller(DEFAULT_propeller_us);
-}
-void restartPropeller(int b) {
-  if (disablePropeller) return;
-  if (!running) return;
-  propellerServo.writeMicroseconds(1400);
-  delay(500);
-  propellerServo.writeMicroseconds(b);
-}
-
-void start() {
-  restartPropeller();
-  encoderCount = 0;
-  distanceTranvelled_cm = 0;
 }
 
 void loop() {
