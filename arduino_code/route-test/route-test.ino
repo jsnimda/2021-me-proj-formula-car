@@ -219,8 +219,6 @@ void vTaskSensorLoop(void* pvParameters) {
     // ir array
     for (int i = 0; i < ir_array_count; i++) {
       ir_array_values_last[i] = ir_array_values[i];
-    }
-    for (int i = 0; i < ir_array_count; i++) {
       ir_array_values[i] = digitalRead(PIN_ir_array[i]);
     }
     analyzeIR();
@@ -257,7 +255,9 @@ void setWhere(int where) {
 }
 
 void findWhere() {
-  if (countLine(ir_array_values) == 0 && countLine(ir_array_values_last) <= 2) {
+  int currentCountLine = countLineCurrent();
+  int lastCountLine = countLineLast();
+  if (currentCountLine == 0 && lastCountLine <= 2) {  // the line has gone off
     if (ir_array_values_last[0] == 1 || ir_array_values_last[1] == 1) {
       setWhere(-20);
       go_off = -20;
@@ -268,11 +268,11 @@ void findWhere() {
     }
     return;
   }
-  if (countLine(ir_array_values) == 0) {
+  if (currentCountLine == 0) {
     setWhere(-40);
     return;
   }
-  if (countLine(ir_array_values) == 1) {
+  if (currentCountLine == 1) {
     if (ir_array_values[0] == 1) setWhere(-2);
     if (ir_array_values[1] == 1) setWhere(-1);
     if (ir_array_values[2] == 1) setWhere(0);
@@ -280,11 +280,12 @@ void findWhere() {
     if (ir_array_values[4] == 1) setWhere(2);
     return;
   }
-  if (countLine(ir_array_values) == 2) {
+  if (currentCountLine == 2) {
     if (ir_array_values[0] == 1 && ir_array_values[1] == 1) setWhere(-2);
-    if (ir_array_values[1] == 1 && ir_array_values[2] == 1) setWhere(-1);
-    if (ir_array_values[2] == 1 && ir_array_values[3] == 1) setWhere(1);
-    if (ir_array_values[3] == 1 && ir_array_values[4] == 1) setWhere(2);
+    else if (ir_array_values[1] == 1 && ir_array_values[2] == 1) setWhere(-1);
+    else if (ir_array_values[2] == 1 && ir_array_values[3] == 1) setWhere(1);
+    else if (ir_array_values[3] == 1 && ir_array_values[4] == 1) setWhere(2);
+    else setWhere(-30);  // not a line
     return;
   }
   setWhere(-30);
@@ -296,15 +297,18 @@ void analyzeIR() {
 }
 
 void checkCross() {
-  if (countLine(ir_array_values) == 5 && /*countLine(ir_array_values_last) != 0 &&*/ countLine(ir_array_values_last) != 5) {
+  if (countLineCurrent() == 5 && countLineLast() != 5) {
     cross_count++;
     _logf("cross_count: ");
     _log(cross_count);
   }
 }
 
-int countLine() {
+int countLineCurrent() {
   return countLine(ir_array_values);
+}
+int countLineLast() {
+  return countLine(ir_array_values_last);
 }
 
 int countLine(int ir[]) {
@@ -318,7 +322,7 @@ int countLine(int ir[]) {
 }
 
 boolean hasLine() {
-  return countLine() > 0;
+  return countLineCurrent() > 0;
 }
 
 // ============
@@ -368,7 +372,7 @@ void vTaskStatusLogger(void* pvParameters) {
 // Route-test
 // ============
 
-enum Movement {
+enum Movement {  // v prefix means no value
   LaunchPropeller_us,
   vResetDisplacement,
   Straight_cm,
@@ -377,10 +381,10 @@ enum Movement {
   vBrake_And_Go,
   vBrake_And_Stop,
   UTurn_cm,
-  TimedLeft_1,
+  vTimedLeft_1,
   EnterLineFollow_1_cm,
-  EnterLineFollow_2_cm,
-  TimedLeft_2,
+  vEnterLineFollow_2,
+  vTimedLeft_2,
   vEnterLineFollow_3,
 };
 typedef struct {
@@ -396,15 +400,15 @@ SegmentAction segmentActions[] = {
     {Right_cm, 25.934},
     {Straight_cm, 42.1 - 10},
     {EnterLineFollow_1_cm, 45.305 - 15 + 5},
-    {TimedLeft_1, 0},
+    {vTimedLeft_1, 0},
     {Straight_cm, 10},
-    {EnterLineFollow_2_cm, 38.401 + 15},
+    {vEnterLineFollow_2, 0},
     {vBrake_And_Go, 0},
     {LaunchPropeller_us, FASTER_propeller_us},
     {Straight_cm, 2 + 6},
     {UTurn_cm, 110},
     {LaunchPropeller_us, DEFAULT_propeller_us},
-    {TimedLeft_2, 0},
+    {vTimedLeft_2, 0},
     {vEnterLineFollow_3, 0},
     {vBrake_And_Stop, 0},
 };
@@ -486,7 +490,7 @@ void handleMovement() {  // remember gotoNextSegment or waitUntilXXX
       running = false;
       gotoNextSegment();
       break;
-    case TimedLeft_1:
+    case vTimedLeft_1:
       steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
       delay(20);
       steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
@@ -501,7 +505,7 @@ void handleMovement() {  // remember gotoNextSegment or waitUntilXXX
       delay(375);
       gotoNextSegment();
       break;
-    case TimedLeft_2:
+    case vTimedLeft_2:
       steerServo.writeMicroseconds(steer_center_us - 550);  // 1430, +-500 = 46.5 deg
       delay(550);
       gotoNextSegment();
@@ -509,7 +513,7 @@ void handleMovement() {  // remember gotoNextSegment or waitUntilXXX
     case EnterLineFollow_1_cm:
       doEnterLineFollow_1();
       break;
-    case EnterLineFollow_2_cm:
+    case vEnterLineFollow_2:
       doEnterLineFollow_2();
       break;
     case vEnterLineFollow_3:
@@ -590,7 +594,6 @@ void doEnterLineFollow_1() {
 
 void doEnterLineFollow_2() {
   // _log("doEnterLineFollow_2");
-  double travelDis_cm = segmentActions[currentSegmentIndex].value;
   steerServo.writeMicroseconds(steer_center_us);
   while (running) {
     if (hasLine()) {
@@ -652,6 +655,7 @@ void resetDisplacement() {
   distanceTranvelled_cm = 0;
 
   currentSegmentIndex = 0;
+  currentSegmentState = PendingStart;
 }
 
 void doBrake() {
@@ -688,15 +692,22 @@ void setup() {
   bleSerial.begin("ESP32-ble-js");
 #endif
 
-  xTaskCreate(vTaskSensorLoop, "vTaskSensorLoop", TASK_STACK_SIZE, NULL, 1, NULL);
+  // run both sensor loop and contorl loop at core 0
+  // priority: always run sensor loop before control loop
+  xTaskCreate(vTaskSensorLoop, "vTaskSensorLoop", TASK_STACK_SIZE, NULL, 5, NULL);
+  xTaskCreate(vTaskControlLoop, "vTaskControlLoop", TASK_STACK_SIZE, NULL, 4, NULL);
   // xTaskCreate(vTaskStatusLogger, "vTaskStatusLogger", 5000, NULL, 1, NULL);
 
   waitForStart();
 }
 
-void loop() {
-  if (running) {
-    handleRouteTest();
+void vTaskControlLoop(void* pvParameters) {
+  for (;;) {
+    if (running) {
+      handleRouteTest();
+    }
+    delay(1);
   }
-  delay(1);
 }
+
+void loop() {}
