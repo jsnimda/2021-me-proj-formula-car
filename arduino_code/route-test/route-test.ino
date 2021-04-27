@@ -69,6 +69,9 @@ int ir_array_values[ir_array_count];  // readings from ir array
 // on/off button with led
 // led on = 1 = start race, led off = 0 = stop race
 // for digitalRead, 0 = led on, 1 = led off
+
+// add to setup():
+//    setup_on_off_button();
 int on_led_last = 0;
 int on_led = 0;  // 1 = led on, 0 = led off
 void setup_on_off_button() {
@@ -113,10 +116,8 @@ BLESerial bleSerial;
 boolean use_led = false;  // indicate use ble or use led to start race
 
 void startRace() {
-  // launchPropeller();
-  resetDisplacement();
   running = true;
-  launchPropeller();
+  // after this line will enter loop() function
 }
 
 void stopRace() {
@@ -368,88 +369,124 @@ void vTaskStatusLogger(void* pvParameters) {
 // ============
 
 enum Movement {
-  Straight,
-  Left,
-  Left_ms_1,
-  Left_ms_2,
-  Right,
-  Stop,
-  Brake,
-  Brake_And_Go,
-  Brake_And_Stop,
-  EnterLineFollow_1,
-  EnterLineFollow_2,
-  EnterLineFollow_3,
-  UTurn,
-  UTurnEnd,
+  LaunchPropeller_us,
+  vResetDisplacement,
+  Straight_cm,
+  Left_cm,
+  Right_cm,
+  vBrake_And_Go,
+  vBrake_And_Stop,
+  UTurn_cm,
+  TimedLeft_1,
+  EnterLineFollow_1_cm,
+  EnterLineFollow_2_cm,
+  TimedLeft_2,
+  vEnterLineFollow_3,
+};
+typedef struct {
+  Movement movement;
+  double value;
+} SegmentAction;
+
+SegmentAction segmentActions[] = {
+    {LaunchPropeller_us, DEFAULT_propeller_us},
+    {vResetDisplacement, 0},
+
+    {Straight_cm, 30},
+    {Right_cm, 25.934},
+    {Straight_cm, 42.1 - 10},
+    {EnterLineFollow_1_cm, 45.305 - 15 + 5},
+    {TimedLeft_1, 0},
+    {Straight_cm, 10},
+    {EnterLineFollow_2_cm, 38.401 + 15},
+    {vBrake_And_Go, 0},
+    {LaunchPropeller_us, FASTER_propeller_us},
+    {Straight_cm, 2 + 6},
+    {UTurn_cm, 110},
+    {LaunchPropeller_us, DEFAULT_propeller_us},
+    {TimedLeft_2, 0},
+    {vEnterLineFollow_3, 0},
+    {vBrake_And_Stop, 0},
 };
 
-double segments[] = {
-    30,               //Straight
-    25.934,           //Right
-    42.1 - 10,        //Straight
-    45.305 - 15 + 5,  //EnterLineFollow_1
-    0,                //Left ms
-    10,               //Straight
-    38.401 + 15,      //EnterLineFollow_2
-    0,                //Brake_And_Go
-    2 + 6,            // Straight
-    110,              //UTurn
-    0,                //UTurnEnd
-    0,                //Left_ms_2
-    0,                //EnterLineFollow_3
-    0};               //Brake
-Movement segMovements[] = {
-    Straight,
-    Right,
-    Straight,
-    EnterLineFollow_1,
-    Left_ms_1,
-    Straight,
-    EnterLineFollow_2,
-    Brake_And_Go,
-    Straight,
-    UTurn,
-    UTurnEnd,
-    Left_ms_2,
-    EnterLineFollow_3,
-    Brake_And_Stop,
-    Brake};
+enum SegmentState {
+  PendingStart,
+  WaitingForTarget,
+  PendingNext,
+};
 
 int currentSegmentIndex = 0;
-double seg_offset = 0;
+SegmentState currentSegmentState = PendingStart;
+// double seg_offset = 0;
+
+void waitUntilDistance(double targetDistance) {
+  while (distanceTranvelled_cm < targetDistance) {
+    delay(1);
+  }
+}
+void waitUntilSegmentDistance() {
+  waitUntilDistance(distanceTranvelled_cm + segmentActions[currentSegmentIndex].value);
+  gotoNextSegment();
+}
+
+void waitUntilSegmentTime() {
+  delay(segmentActions[currentSegmentIndex].value);
+  gotoNextSegment();
+}
 
 void gotoNextSegment() {
-  seg_offset = distanceTranvelled_cm;
-  currentSegmentIndex++;
-  handleMovement();
+  currentSegmentState = PendingNext;
 }
 
 void handleRouteTest() {
-  if (currentSegmentIndex >= min(_len(segments), _len(segMovements))) {
+  if (currentSegmentIndex >= _len(segmentActions)) {  // we have run all the segments
     return;
   }
-  if ((distanceTranvelled_cm - seg_offset) >= segments[currentSegmentIndex]) {
-    seg_offset += segments[currentSegmentIndex];  // will vary to acc segments when line following
-    currentSegmentIndex++;
-    handleMovement();
+  while (currentSegmentState == PendingStart || currentSegmentState == PendingNext) {
+    if (!running) return;
+    if (currentSegmentState == PendingStart) {
+      currentSegmentState = WaitingForTarget;
+      handleMovement();
+    } else if (currentSegmentState == PendingNext) {
+      currentSegmentIndex++;
+      currentSegmentState = PendingStart;
+    }
   }
 }
-void handleMovement() {
+void handleMovement() {  // remember gotoNextSegment or waitUntilXXX
   _logf("next movement: ");
   _log(currentSegmentIndex);
-  if (currentSegmentIndex >= min(_len(segments), _len(segMovements))) {
+  if (currentSegmentIndex >= _len(segmentActions)) {
     stopServos();
     return;
   }
-  switch (segMovements[currentSegmentIndex]) {
-    case Straight:
+  switch (segmentActions[currentSegmentIndex].movement) {
+    case Straight_cm:
       steerServo.writeMicroseconds(steer_center_us);  // 1430, +-500 = 46.5 deg
+      waitUntilSegmentDistance();
       break;
-    case Left:
+    case Left_cm:
       steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
+      waitUntilSegmentDistance();
       break;
-    case Left_ms_1:
+    case Right_cm:
+      steerServo.writeMicroseconds(steer_center_us + 500);  // 1430, +-500 = 46.5 deg
+      waitUntilSegmentDistance();
+      break;
+    case vBrake_And_Go:  // u turn afterwards
+      doBrake();
+      gotoNextSegment();
+      break;
+    case UTurn_cm:
+      steerServo.writeMicroseconds(steer_center_us + 550);  // 1430, +-500 = 46.5 deg
+      waitUntilSegmentDistance();
+      break;
+    case vBrake_And_Stop:
+      doBrake();
+      running = false;
+      gotoNextSegment();
+      break;
+    case TimedLeft_1:
       steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
       delay(20);
       steerServo.writeMicroseconds(steer_center_us - 500);  // 1430, +-500 = 46.5 deg
@@ -464,47 +501,18 @@ void handleMovement() {
       delay(375);
       gotoNextSegment();
       break;
-    case Left_ms_2:
+    case TimedLeft_2:
       steerServo.writeMicroseconds(steer_center_us - 550);  // 1430, +-500 = 46.5 deg
       delay(550);
-      // for (int i = 0; i < 300; i++) {
-      //   delay(1);
-      //   if (hasLine()) break;
-      // }
       gotoNextSegment();
       break;
-    case Right:
-      steerServo.writeMicroseconds(steer_center_us + 500);  // 1430, +-500 = 46.5 deg
+    case EnterLineFollow_1_cm:
+      doEnterLineFollow_1(segmentActions[currentSegmentIndex].value);
       break;
-    case Stop:
-      stopServos();
+    case EnterLineFollow_2_cm:
+      doEnterLineFollow_2(segmentActions[currentSegmentIndex].value);
       break;
-    case Brake:
-      doBrake();
-      break;
-    case Brake_And_Go:  // u turn afterwards
-      doBrake();
-      seg_offset = distanceTranvelled_cm;
-      if (running) launchPropeller(FASTER_propeller_us);
-      break;
-    case UTurn:
-      steerServo.writeMicroseconds(steer_center_us + 550);  // 1430, +-500 = 46.5 deg
-      break;
-    case UTurnEnd:
-      if (disablePropeller) return;
-      if (running) propellerServo.writeMicroseconds(DEFAULT_propeller_us);
-      break;
-    case Brake_And_Stop:
-      doBrake();
-      running = false;
-      break;
-    case EnterLineFollow_1:
-      doEnterLineFollow_1(segments[currentSegmentIndex]);
-      break;
-    case EnterLineFollow_2:
-      doEnterLineFollow_2(segments[currentSegmentIndex]);
-      break;
-    case EnterLineFollow_3:
+    case vEnterLineFollow_3:
       doEnterLineFollow_3();
       break;
   }
@@ -691,7 +699,7 @@ void doEnterLineFollow_3() {
 }
 
 // ============
-// Main
+// Basic Control Functions
 // ============
 
 void stopServos() {
@@ -747,7 +755,6 @@ void setup() {
     pinMode(PIN_ir_array[i], INPUT);
   }
 
-  // setup on off button
   setup_on_off_button();
 
 #ifdef ENABLE_BLE
