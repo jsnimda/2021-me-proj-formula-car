@@ -246,26 +246,27 @@ int go_off = -30;
 
 void setWhere(int where) {
   if (where != where_is_line) {
-    if (where_is_line >= -20) where_is_line_last = where_is_line;
+    if (-20 <= where_is_line && where_is_line <= 20) where_is_line_last = where_is_line;
     where_is_line = where;
   }
   if (where >= -2 && where <= 2) {
     go_off = -30;
+  }
+  if (where == -20 || where == 20) {
+    go_off = where;
   }
 }
 
 void findWhere() {
   int currentCountLine = countLineCurrent();
   int lastCountLine = countLineLast();
-  if (currentCountLine == 0 && lastCountLine <= 2) {  // the line has gone off
-    if (ir_array_values_last[0] == 1 || ir_array_values_last[1] == 1) {
+  if (currentCountLine == 0 && (lastCountLine == 1 || lastCountLine == 2)) {  // the line has gone off
+    if (ir_array_values_last[0] == 1)
       setWhere(-20);
-      go_off = -20;
-    }
-    if (ir_array_values_last[4] == 1 || ir_array_values_last[3] == 1) {
+    else if (ir_array_values_last[4] == 1)
       setWhere(20);
-      go_off = 20;
-    }
+    else
+      setWhere(-40);
     return;
   }
   if (currentCountLine == 0) {
@@ -281,11 +282,16 @@ void findWhere() {
     return;
   }
   if (currentCountLine == 2) {
-    if (ir_array_values[0] == 1 && ir_array_values[1] == 1) setWhere(-2);
-    else if (ir_array_values[1] == 1 && ir_array_values[2] == 1) setWhere(-1);
-    else if (ir_array_values[2] == 1 && ir_array_values[3] == 1) setWhere(1);
-    else if (ir_array_values[3] == 1 && ir_array_values[4] == 1) setWhere(2);
-    else setWhere(-30);  // not a line
+    if (ir_array_values[0] == 1 && ir_array_values[1] == 1)
+      setWhere(-2);
+    else if (ir_array_values[1] == 1 && ir_array_values[2] == 1)
+      setWhere(-1);
+    else if (ir_array_values[2] == 1 && ir_array_values[3] == 1)
+      setWhere(1);
+    else if (ir_array_values[3] == 1 && ir_array_values[4] == 1)
+      setWhere(2);
+    else
+      setWhere(-30);  // not a line
     return;
   }
   setWhere(-30);
