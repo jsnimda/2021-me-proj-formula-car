@@ -6,8 +6,6 @@
 
 #include "Print.h"
 
-#define WIFI_MTU_SIZE 1500
-
 template <size_t BUF_SIZE>
 class CircularBuffer_T : public Print {
   enum { cap = BUF_SIZE };  // unnamed enum for constant without allocating memory
@@ -75,7 +73,5 @@ class CircularBuffer_T : public Print {
     return size;
   }
 };
-
-// typedef CircularBuffer_T<WIFI_MTU_SIZE * 2> CircularBuffer;
 
 #endif  // CircularBuffer_h
