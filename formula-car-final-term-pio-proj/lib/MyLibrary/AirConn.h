@@ -1,8 +1,8 @@
 
 // Optional library for OTA update, WiFi serial monitor, etc
 
-#ifndef AirDeploy_h
-#define AirDeploy_h
+#ifndef AirConn_h
+#define AirConn_h
 
 /*
 Core 0: WiFi, logging, etc
@@ -28,4 +28,4 @@ WirelessSerialBuffer_t WirelessSerialBuffer;
 
 
 
-#endif  // AirDeploy_h
+#endif // AirConn_h
