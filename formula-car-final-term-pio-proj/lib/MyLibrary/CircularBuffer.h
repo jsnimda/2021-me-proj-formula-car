@@ -43,28 +43,7 @@ class CircularBuffer_T : public Print {
 
     if (size == 0) return 0;
 
-    // case 1: right remaining > 0 (start <= end < capacity)
-    //         rrem = capacity - end
-    // split if size > rrem
-
-    // case 2: no right remaining (end <= start < capacity)
-    // no need to split
-
-    // case 3: len == capacity (start == end)
-    // should already be returned (should not reach here)
-
-    // if size > cap - _end
-    // implies case 1 need split
-    // no need check start <= end < capacity
-    // if (size > cap - _end) {  // need split
-    //   int rrem = cap - _end;
-    //   memcpy(_buf + _end, buffer, rrem);  // sizeof(uint8_t) always 1
-    //   memcpy(_buf, buffer + rrem, size - rrem);
-    // } else {  // no need split
-    //   memcpy(_buf + _end, buffer, size);
-    // }
-
-    // Flash size 201680 -> 201676
+    // check need split if size > cap - _end
     size_t a = size > cap - _end ? cap - _end : size;
     memcpy(_buf + _end, buffer, a);
     memcpy(_buf, buffer + a, size - a);
@@ -85,21 +64,7 @@ class CircularBuffer_T : public Print {
 
     if (size == 0) return 0;
 
-    // case 1: _buf is splited (start + len > cap)
-    // (end == 0 is not considered splited)
-    // split if size > cap - start
-
-    // case 2: continuous _buf (start + len <= cap)
-
-    // if (size > cap - _start) {
-    //   int rsize = cap - _start;
-    //   memcpy(buffer, _buf + _start, rsize);
-    //   memcpy(buffer + rsize, _buf, size - rsize);
-    // } else {
-    //   memcpy(buffer, _buf + _start, size);
-    // }
-
-    // Flash size 201676 -> 201652
+    // check need split if size > cap - _start
     size_t a = size > cap - _start ? cap - _start : size;
     memcpy(buffer, _buf + _start, a);
     memcpy(buffer + a, _buf, size - a);
