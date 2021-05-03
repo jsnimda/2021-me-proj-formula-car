@@ -9,13 +9,20 @@ Core 0: WiFi, logging, etc
 Core 1: Controller, Sensors, loop(), etc
 */
 
+#include <WiFi.h>
+#include <ESPmDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
+
+#include <WiFiMulti.h>
+
 #define WIFI_MTU_SIZE 1500
 
 #include "CircularBuffer.h"
-#include <WiFi.h>
+#include "myssid.h"
 
 typedef CircularBuffer_T<WIFI_MTU_SIZE * 2> WirelessSerialBuffer_t;
-WirelessSerialBuffer_t WirelessSerialBuffer;
+extern WirelessSerialBuffer_t WirelessSerialBuffer;
 
 
 
@@ -23,7 +30,9 @@ WirelessSerialBuffer_t WirelessSerialBuffer;
 // ============
 // Functions
 // ============
-// void airconnSetup();
+void airConnSetup() {
+
+}
 
 
 
