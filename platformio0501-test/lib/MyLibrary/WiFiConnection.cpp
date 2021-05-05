@@ -8,6 +8,7 @@
 // Includes
 // ============
 
+#include <ESPmDNS.h>
 #include <HardwareSerial.h>
 #include <WiFi.h>
 
@@ -115,6 +116,9 @@ void wifiConnectionSetup() {
   if (!wifiConnectionEventGroup) {
     wifiConnectionEventGroup = xEventGroupCreate();
   }
+
+  MDNS.begin(myHOSTNAME);
+  MDNS.enableArduino();
 
   WiFi.setHostname(myHOSTNAME);
   WiFi.setAutoReconnect(false);  // disable default auto connect
