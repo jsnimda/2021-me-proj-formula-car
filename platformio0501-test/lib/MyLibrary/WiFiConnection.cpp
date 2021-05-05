@@ -120,6 +120,10 @@ void wifiConnectionSetup() {
   MDNS.begin(myHOSTNAME);
   MDNS.enableArduino();
 
+  WiFi.mode(WIFI_STA);
+  // ref: https://www.mischianti.org/2021/03/06/esp32-practical-power-saving-manage-wifi-and-cpu-1/
+  // Power consumption 80mA -> 145mA
+  WiFi.setSleep(false);  // reduce ping (but increase power usage)
   WiFi.setHostname(myHOSTNAME);
   WiFi.setAutoReconnect(false);  // disable default auto connect
   WiFi.onEvent(onWifiEvent);
