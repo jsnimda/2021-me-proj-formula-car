@@ -21,10 +21,10 @@
 
 */
 
+#include <Arduino.h>
 #include <WiFi.h>
 
-#define mySSID "JS"
-#define myPASSWORD "81288128"
+#include "WiFiConnection.h"
 
 String statToStr(int stat) {
   if (stat == 255) return "WL_NO_SHIELD";
@@ -39,7 +39,8 @@ String statToStr(int stat) {
   return "Unknown";
 }
 
-void printStat(int stat) {
+void printWifiStat() {
+  int stat = WiFi.status();
   Serial.flush();
   Serial.print("stat: ");
   Serial.print(stat);
@@ -64,51 +65,15 @@ void setup() {
   log_i("test i");
   log_w("test w");
   log_e("test e");
-
-  winfo();
-  printStat(WiFi.status());
-  delay(1000);
-  WiFi.begin(mySSID, myPASSWORD);
-  Serial.flush();
-  Serial.println("Connecting Wifi...");
-  winfo();
-  printStat(WiFi.status());
-  delay(1000);
-  winfo();
-
-  Serial.println("Wait for wifi result...");
-  WiFi.waitForConnectResult();
-  Serial.flush();
-  Serial.println("Wait end");
+  
+  printWifiStat();
+  Serial.println("wifiConnectionSetup...");
+  wifiConnectionSetup();
+  Serial.println("wifiConnectionSetup end");
+  printWifiStat();
 }
 
 void loop() {
   delay(1000);
-  if (!WiFi.isConnected()) winfo();
-  Serial.flush();
-  Serial.print("wifi connected: ");
-  Serial.println(WiFi.isConnected());
-  if (!WiFi.isConnected()) {
-    Serial.flush();
-    printStat(WiFi.status());
-    Serial.println("WiFi not connected!");
-
-    // WiFi.disconnect(true, false);
-    WiFi._setStatus(WL_CONNECTION_LOST);
-
-    WiFi.begin(mySSID, myPASSWORD);
-    Serial.flush();
-    Serial.println("Connecting Wifi...");
-
-    Serial.println("Wait for wifi result...");
-    WiFi.waitForConnectResult();
-    delay(2000);
-    Serial.flush();
-    Serial.println("Wait end");
-
-    printStat(WiFi.status());
-    winfo();
-  } else {
-    delay(10 * 1000);
-  }
+  printWifiStat();
 }
