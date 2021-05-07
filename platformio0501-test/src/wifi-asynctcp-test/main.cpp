@@ -1,8 +1,16 @@
 /*
 
   Conclusion:
-    no need special reconnection on WiFiServer
+    no need special reconnection on AsyncServer
     once wifi is up, server is up
+
+  Conclusion 2:
+    telnet -> esp32
+      maximum data rate: each onData() have len 1436
+    client info:
+      MSS: 1436
+      Ack timeout: 5000 ms
+      tcp_sndbuf: 5744
 
 */
 
@@ -39,6 +47,18 @@ void setup() {
   Serial.println(" 23' to connect");
 }
 
+void dump_client_info() {
+  if (!pServerClient) return;
+  AsyncClient& serverClient = *pServerClient;
+  Serial.printf("Client info:\r\n");
+  Serial.printf("  space(): %d\r\n", serverClient.space());
+  Serial.printf("  getMss(): %d\r\n", serverClient.getMss());
+  Serial.printf("  getRxTimeout() s: %d\r\n", serverClient.getRxTimeout());
+  Serial.printf("  getAckTimeout() ms: %d\r\n", serverClient.getAckTimeout());
+  Serial.printf("  getNoDelay(): %d\r\n", serverClient.getNoDelay());
+  Serial.printf("  stateToString(): %s\r\n", serverClient.stateToString());
+}
+
 void ser_setup() {
   //check if there are any new clients
   server.onClient([](void*, AsyncClient* client) {
@@ -72,12 +92,14 @@ void client_setup() {
   AsyncClient& serverClient = *pServerClient;
   //check clients for data
   serverClient.onData([](void*, AsyncClient*, void* data, size_t len) {
-    Serial.write((uint8_t*)data, len);
+    // Serial.write((uint8_t*)data, len);
+    Serial.print("len: ");
+    Serial.println(len);
   },
                       NULL);
 }
 
-bool ff = false;
+unsigned long long j = 0;
 
 // warning: async_tcp can cause abort
 // task_wdt: Task watchdog got triggered. The following tasks did not reset the watchdog in time:
@@ -105,6 +127,11 @@ void loop() {
       if (total_len) {
         serverClient.write((char*)large_buffer, total_len);
       }
+    }
+
+    if (millis() - j > 10 * 1000) {
+      j = millis();
+      dump_client_info();
     }
   } else {
     Serial.println("WiFi not connected!");
