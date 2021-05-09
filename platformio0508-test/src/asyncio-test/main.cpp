@@ -47,12 +47,14 @@ void loop() {
   for (int i = 0; i < 10; i++) {
     perfStart();
     AsyncSerial.println(text_to_test);
+    delay(500);
     perfEnd(asyncPrint);
   }
   delay(1000);
   for (int i = 0; i < 10; i++) {
     perfStart();
     Serial.println(text_to_test);
+    delay(1000);
     perfEnd(serialPrint);
   }
   delay(1000);

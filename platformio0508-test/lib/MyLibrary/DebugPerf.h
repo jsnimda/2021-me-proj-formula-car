@@ -7,9 +7,15 @@
 extern const double CCountPerMillisecond;
 
 #ifdef USE_MICROS
-#define perfNow_ms_double() (micros() / 1000.0)
+// #define perfNow_ms_double() (micros() / 1000.0)
+#define perfNow_raw() micros()
+#define perfRawType unsigned long
+#define perfRawToMs_double(x) (x / 1000.0)
 #else  // only for time interval less than 17 (= 2^32 / 240e6) seconds
-#define perfNow_ms_double() (portGET_RUN_TIME_COUNTER_VALUE() / CCountPerMillisecond)
+// #define perfNow_ms_double() (portGET_RUN_TIME_COUNTER_VALUE() / CCountPerMillisecond)
+#define perfNow_raw() portGET_RUN_TIME_COUNTER_VALUE()
+#define perfRawType unsigned
+#define perfRawToMs_double(x) (x / CCountPerMillisecond)
 #endif
 
 class PerfData {
@@ -38,11 +44,11 @@ class PerfData {
 };
 
 #define perfCreate(x) PerfData x##PerfData(#x);
-#define perfStart() (_perf_local_var = perfNow_ms_double());
-#define perfEnd(x)                                           \
-  _perf_local_var = perfNow_ms_double() - _perf_local_var; \
-  x##PerfData.add_entry(_perf_local_var);
+#define perfDeclare() perfRawType _perf_local_var;
+#define perfStart() (_perf_local_var = perfNow_raw());
+#define perfEnd(x)                                         \
+  _perf_local_var = perfNow_raw() - _perf_local_var; \
+  x##PerfData.add_entry(perfRawToMs_double(_perf_local_var));
 #define perfClear(x) x##PerfData.clear();
-#define perfDeclare() double _perf_local_var;
 
 #endif  // DebugPerf_h
