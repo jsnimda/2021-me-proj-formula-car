@@ -64,7 +64,7 @@ class CircularBuffer_T : public Print {
     _end = _start + _len;
     if (_end >= cap) {
       _end -= cap;
-      highMark = max(highMark, cap);
+      highMark = max(highMark, (size_t)cap);
     } else {
       highMark = max(highMark, _end);
     }

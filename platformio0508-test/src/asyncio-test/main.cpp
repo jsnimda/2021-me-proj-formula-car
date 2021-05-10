@@ -28,42 +28,33 @@ void setup() {
 
 void printPerfInfo(PerfData& d) {
   Serial.flush();
-  Serial.printf("%s:\r\n", d.name);
-  Serial.printf("  min: %.6f ms\r\n", d.min_ms);
-  Serial.printf("  max: %.6f ms\r\n", d.max_ms);
-  Serial.printf("  avg: %.6f ms\r\n", d.total_ms / d.entries_count);
-  Serial.printf("  count: %d\r\n", d.entries_count);
+  Serial.print(d.dumpAndClear());
 }
 
-perfCreate(asyncPrint);
-perfCreate(serialPrint);
+PerfData perf_name(ap);
+PerfData perf_name(sp);
 
 #define text_to_test "Hello!"
 
 void loop() {
-  perfDeclare();
+  perf_rawtype a;
   delay(1000);
 
   for (int i = 0; i < 10; i++) {
-    perfStart();
+    perf_start(a);
     AsyncSerial.println(text_to_test);
-    delay(500);
-    perfEnd(asyncPrint);
+    perf_end(a, ap);
   }
   delay(1000);
   for (int i = 0; i < 10; i++) {
-    perfStart();
+    perf_start(a);
     Serial.println(text_to_test);
-    delay(1000);
-    perfEnd(serialPrint);
+    perf_end(a, sp);
   }
   delay(1000);
   Serial.println();
-  printPerfInfo(asyncPrintPerfData);
-  printPerfInfo(serialPrintPerfData);
-
-  perfClear(asyncPrint);
-  perfClear(serialPrint);
+  printPerfInfo(ap);
+  printPerfInfo(sp);
 
   delay(10 * 1000);
 }
