@@ -5,6 +5,11 @@
     short text (len = 6) serial (0.01 ms) faster than async (0.05 ms)
     long text(len = 368) async (0.05 ms) faster than serial (31.08 ms)
 
+    Using buffer
+    short text (len = 6) serial (0.02 ms) faster than async (0.003 ms)
+    long text(len = 368) async (0.07 ms) faster than serial (31.08 ms)
+      (but async overflowed)
+
 */
 
 #include <Arduino.h>
@@ -16,10 +21,10 @@
 void setup() {
   Serial.begin(115200);
   Serial.println("Hello~");
-  wifiConnectionSetup();
+  // wifiConnectionSetup();
   asyncIOSetup();
 
-  AsyncSerial.attachReader([](uint8_t* data, size_t len) {
+  AsyncSerial.onData([](uint8_t* data, size_t len) {
     AsyncSerial.print("ACK: ");
     AsyncSerial.write(data, len);
     AsyncSerial.println();
@@ -42,13 +47,18 @@ void loop() {
 
   for (int i = 0; i < 10; i++) {
     perf_start(a);
-    AsyncSerial.println(text_to_test);
+    AsyncSerial.print(text_to_test);
+    AsyncSerial.println(i);
     perf_end(a, ap);
   }
-  delay(1000);
+  delay(500);
+  AsyncSerial.println();
+  AsyncSerial.println();
+  delay(500);
   for (int i = 0; i < 10; i++) {
     perf_start(a);
-    Serial.println(text_to_test);
+    Serial.print(text_to_test);
+    Serial.println(i);
     perf_end(a, sp);
   }
   delay(1000);

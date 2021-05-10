@@ -25,28 +25,33 @@
 
 // add this in setup():
 void asyncIOSetup();
-void logdSerial(String s);  // call AsyncSerial.printWithLock(s)
+void loga(String s);  // call AsyncSerial.printWithLock(s)
 
 // ============
 // AsyncStream
 // ============
 
-typedef void (*AsyncStreamDataHandler)(uint8_t *data, size_t len);
+typedef void (*AssDataHandler)(uint8_t *data, size_t len);
+typedef void (*AssConnectHandler)(AsyncClient *);
 
-class DataReader {
- public:
-  virtual void onData(uint8_t *data, size_t len) = 0;
-};
+// class DataReader {
+//  public:
+//   virtual void onData(uint8_t *data, size_t len) = 0;
+// };
 
 template <size_t MSS>
 class AsyncStream_T : public Print {
  public:
   bool notifying = false;
-  AsyncStreamDataHandler _onData_cb = NULL;
+  AssDataHandler _onData_cb = NULL;
   portMUX_TYPE _buf_mux = portMUX_INITIALIZER_UNLOCKED;
   CircularBuffer_T<MSS * 2> _buf;
-  virtual void attachReader(AsyncStreamDataHandler onData) {
-    _onData_cb = onData;
+
+  virtual void onData(AssDataHandler cb) {
+    _onData_cb = cb;
+  }
+  size_t write(uint8_t c) override {
+    return write(&c, 1);
   }
   virtual size_t write(const uint8_t *buffer, size_t size) override {
     size_t s = _buf.write(buffer, size);
@@ -56,87 +61,86 @@ class AsyncStream_T : public Print {
     }
     return s;
   }
-  size_t write(uint8_t c) override {
-    return write(&c, 1);
-  }
 
   virtual void notifyTx() = 0;
 
-  void lockBufTx() {
+  // ============
+  // Lock
+  // ============
+
+  void lockBuf() {
     portENTER_CRITICAL(&_buf_mux);
   }
-  void unlockBufTx() {
+  void unlockBuf() {
     portEXIT_CRITICAL(&_buf_mux);
   }
-
-  void printWithLock(String s) {
-    lockBufTx();
-    print(s);
-    unlockBufTx();
+  size_t lockedPrint(String s) {
+    lockBuf();
+    size_t len = print(s);
+    unlockBuf();
+    return len;
   }
+  size_t lockedWrite(const uint8_t *buffer, size_t size) {
+    lockBuf();
+    size_t len = write(buffer, size);
+    unlockBuf();
+    return len;
+  }
+
+  // ============
+  // Constructor / Rule of three
+  // ============
 
   AsyncStream_T() = default;
   AsyncStream_T(const AsyncStream_T &) = delete;
   AsyncStream_T &operator=(const AsyncStream_T &) = delete;
 };
 
-// TODO
 class AsyncSocketSerial : public AsyncStream_T<WIFI_MSS> {
  public:
-  void notifyTx();
-
+  TaskHandle_t tskTx = NULL;
+  TaskHandle_t tskRx = NULL;
+  const int port;  // server port, read only
   AsyncServer server;
   portMUX_TYPE _pClient_mux = portMUX_INITIALIZER_UNLOCKED;
   AsyncClient *pClient = NULL;
-  AsyncSocketSerial(int port) : server(port) {
-    server.setNoDelay(true);
+  AssConnectHandler _onConnect_cb = NULL;
+  AssConnectHandler _onDisconnect_cb = NULL;
 
-    server.onClient([&](void *, AsyncClient *pc) {
-      if (!pc) return;
-      portENTER_CRITICAL(&_pClient_mux);
-      if (pClient) {
-        if (pClient->connected()) {
-          pClient->write("\r\nDevice is connected on another client.\r\n");
-        }
-        delete pClient;  // new from AsyncTCP.cpp:1297
-      }
-      pClient = pc;
-      portEXIT_CRITICAL(&_pClient_mux);
-      clientSetup(pc);
-      AsyncClient &serverClient = *pc;
-      String s = stringf("New client: %s\r\n", serverClient.remoteIP().toString().c_str()) +
-                 stringf("  %s:%d -> %s:%d\r\n",
-                         serverClient.remoteIP().toString().c_str(),
-                         serverClient.remotePort(),
-                         serverClient.localIP().toString().c_str(),
-                         serverClient.localPort());
-      logdSerial(s);
-    },
-                    NULL);
-  }
-  void clientSetup(AsyncClient *pc) {
-    if (!pc) return;
-    AsyncClient &serverClient = *pc;
-    serverClient.onData([&](void *, AsyncClient *, void *data, size_t len) {
-      if (_onData_cb) {
-        _onData_cb((uint8_t *)data, len);
-      }
-    },
-                        NULL);
-  }
+  AsyncSocketSerial(int port);
+  ~AsyncSocketSerial();
+
+  void onData(AssDataHandler cb) override;
+  void notifyTx() override;
+
+  void _client_setup(AsyncClient *pc);
+
   void begin() {
     server.begin();
   }
+
+  void onConnect(AssConnectHandler cb) {
+    _onConnect_cb = cb;
+  }
+  void onDisconnect(AssConnectHandler cb) {
+    _onDisconnect_cb = cb;
+  }
 };
 
-// TODO: support custom serial
-class AsyncSerialClass : public AsyncStream_T<SERIAL_MSS> {
+class AsyncHardwareSerial : public AsyncStream_T<SERIAL_MSS> {
  public:
-  void attachReader(AsyncStreamDataHandler onData) override;
+  TaskHandle_t tskTx = NULL;
+  TaskHandle_t tskRx = NULL;
+  HardwareSerial *_serial;
+
+  AsyncHardwareSerial(HardwareSerial &s);
+  ~AsyncHardwareSerial();
+
+  void onData(AssDataHandler onData) override;
   void notifyTx();
 };
 
-extern AsyncSerialClass AsyncSerial;
+extern AsyncHardwareSerial AsyncSerial;
 
 // ============
 // Command Processor
