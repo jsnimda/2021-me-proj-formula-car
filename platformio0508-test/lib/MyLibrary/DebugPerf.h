@@ -2,7 +2,7 @@
 #define DebugPerf_h
 
 #include <Arduino.h>
-#include <float.h>
+#include <limits.h>
 
 #include "MyLibCommon.h"
 
@@ -30,31 +30,43 @@ extern const double CCountPerMillisecond;
 class PerfData {
  public:
   const char* name;
-  double min_ms;
-  double max_ms;
-  double total_ms;
+  uint64_t min_raw;
+  uint64_t max_raw;
+  uint64_t total_raw;
   unsigned int entries_count;
+  double min_ms() {
+    return _perf_raw_to_ms_double(min_raw);
+  }
+  double max_ms() {
+    return _perf_raw_to_ms_double(max_raw);
+  }
+  double total_ms() {
+    return _perf_raw_to_ms_double(total_raw);
+  }
+  double avg_ms() {
+    return total_ms() / entries_count;
+  }
   PerfData() : PerfData("no name") {}
   PerfData(const char* name) : name(name) {
     clear();
   }
-  void add_entry(double ms) {
-    min_ms = min(min_ms, ms);
-    max_ms = max(max_ms, ms);
-    total_ms += ms;
+  inline __attribute__((always_inline)) void add_entry(uint64_t raw) {
+    min_raw = min(min_raw, raw);
+    max_raw = max(max_raw, raw);
+    total_raw += raw;
     entries_count++;
   }
   void clear() {
-    min_ms = DBL_MAX;
-    max_ms = 0;
-    total_ms = 0;
+    min_raw = UINT64_MAX;
+    max_raw = 0;
+    total_raw = 0;
     entries_count = 0;
   }
   String dump() {
     return stringf("%s:\r\n", name) +
-           stringf("  min: %.6f ms\r\n", min_ms) +
-           stringf("  max: %.6f ms\r\n", max_ms) +
-           stringf("  avg: %.6f ms\r\n", total_ms / entries_count) +
+           stringf("  min: %.6f ms (%llu)\r\n", min_ms(), min_raw) +
+           stringf("  max: %.6f ms (%llu)\r\n", max_ms(), max_raw) +
+           stringf("  avg: %.6f ms\r\n", avg_ms()) +
            stringf("  count: %d\r\n", entries_count);
   }
   String dumpAndClear() {
@@ -68,7 +80,7 @@ class PerfData {
 #define perf_rawtype _perf_raw_type
 #define perf_start(x) x = _perf_now_raw()
 #define _perf_end1(x) x = _perf_now_raw() - x
-#define perf_add(x, perfData) perfData.add_entry(_perf_raw_to_ms_double(x))
+#define perf_add(x, perfData) perfData.add_entry(x)
 #define _perf_end2(x, perfData) \
   _perf_end1(x);                \
   perf_add(x, perfData);
