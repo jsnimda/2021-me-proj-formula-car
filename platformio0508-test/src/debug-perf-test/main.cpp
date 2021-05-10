@@ -52,10 +52,65 @@ void loop() {
   printPerfInfo(d1);
   printPerfInfo(d2);
   printPerfInfo(d3);
+
+  for (int i = 0; i < 1000; i++) {
+    perf_start(a);
+    perf_start(b);
+    perf_start(c);
+    perf_end(c, d3);
+    perf_end(b, d2);
+    perf_end(a, d1);
+  }
+  Serial.println("=== nesting test 2 ===");
+  printPerfInfo(d1);
+  printPerfInfo(d2);
+  printPerfInfo(d3);
+
   Serial.println("============");
   delay(10 * 1000);
 }
 
+/*
+
+nesting test 2
+
+PERF_USE_MICROS 0
+
+10:48:51.311 > === nesting test ===
+10:48:51.314 > d1:
+10:48:51.314 >   min: 0.000233 ms
+10:48:51.316 >   max: 0.000308 ms
+10:48:51.318 >   avg: 0.000233 ms
+10:48:51.320 >   count: 1000
+10:48:51.321 > d2:
+10:48:51.321 >   min: 0.000142 ms
+10:48:51.323 >   max: 0.000183 ms
+10:48:51.324 >   avg: 0.000142 ms
+10:48:51.326 >   count: 1000
+10:48:51.328 > d3:
+10:48:51.328 >   min: 0.000046 ms
+10:48:51.330 >   max: 0.000063 ms
+10:48:51.331 >   avg: 0.000046 ms
+10:48:51.332 >   count: 1000
+10:48:51.335 > === nesting test 2 ===
+10:48:51.337 > d1:
+10:48:51.337 >   min: 0.007004 ms
+10:48:51.338 >   max: 0.014858 ms
+10:48:51.341 >   avg: 0.007207 ms
+10:48:51.342 >   count: 1000
+10:48:51.344 > d2:
+10:48:51.344 >   min: 0.003512 ms
+10:48:51.345 >   max: 0.011108 ms
+10:48:51.348 >   avg: 0.003547 ms
+10:48:51.350 >   count: 1000
+10:48:51.351 > d3:
+10:48:51.351 >   min: 0.000046 ms
+10:48:51.353 >   max: 0.000063 ms
+10:48:51.355 >   avg: 0.000046 ms
+10:48:51.356 >   count: 1000
+10:48:51.358 > ============
+
+*/
 /*
 
 Result 1
