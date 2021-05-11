@@ -6,9 +6,13 @@
     long text(len = 368) async (0.05 ms) faster than serial (31.08 ms)
 
     Using buffer
-    short text (len = 6) serial (0.02 ms) faster than async (0.003 ms)
+    short text (len = 6) async (0.003 ms) faster than serial (0.02 ms)
     long text(len = 368) async (0.07 ms) faster than serial (31.08 ms)
       (but async overflowed)
+
+    Using xTaskNotifyGive + static buffer
+    short text (len = 6) async (0.004 ms) faster than serial (0.02 ms)
+    long text(len = 368) async (max 0.027 ms) faster than serial (31.08 ms)
 
 */
 
@@ -43,6 +47,8 @@ PerfData perf_name(sp);
 
 #define text_to_test "This is a macro that calls the xQueueGenericReceive() function.Receive an item from a queue. The item is received by copy so a buffer of adequate size must be provided. The number of bytes copied into the buffer was defined when the queue was created.This function must not be used in an interrupt service routine. See xQueueReceiveFromISR for an alternative that can."
 
+// #define text_to_test "Hello~"
+
 void loop() {
   perf_rawtype a;
   delay(1000);
@@ -72,5 +78,11 @@ void loop() {
   printPerfInfo(ap);
   printPerfInfo(sp);
 
-  delay(10 * 1000);
+  delay(5 * 1000);
+  for (int i = 0; i < 10; i++) {
+    AsyncSerial.lockedPrint("Hello~" "\r\n");
+    
+    delay(100);
+  }
+  delay(5 * 1000);
 }

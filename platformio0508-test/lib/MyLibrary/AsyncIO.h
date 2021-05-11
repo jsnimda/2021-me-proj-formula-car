@@ -22,8 +22,9 @@
 
 // whatsoever the print rate should not exceed the maximum data rate
 // as it is async it will cause data lost (by overwrite)
-#define SERIAL_MSS (1024)
+#define SERIAL_MSS (1024 * 2)
 #define WIFI_MSS 1436
+#define BUF_SIZE_FACTOR 4
 
 // add this in setup():
 void asyncIOSetup();
@@ -44,10 +45,9 @@ typedef void (*AssConnectHandler)(AsyncClient *);
 template <size_t MSS>
 class AsyncStream_T : public Print {
  public:
-  bool notifying = false;
   AssDataHandler _onData_cb = NULL;
   portMUX_TYPE _buf_mux = portMUX_INITIALIZER_UNLOCKED;
-  CircularBuffer_T<MSS * 2> _buf;
+  CircularBuffer_T<MSS * BUF_SIZE_FACTOR> _buf;
 
   virtual void onData(AssDataHandler cb) {
     _onData_cb = cb;
@@ -57,8 +57,7 @@ class AsyncStream_T : public Print {
   }
   virtual size_t write(const uint8_t *buffer, size_t size) override {
     size_t s = _buf.write(buffer, size);
-    if (!notifying && _buf.length() >= MSS) {
-      notifying = true;
+    if (_buf.length() >= MSS) {
       notifyTx();
     }
     return s;
@@ -134,7 +133,6 @@ class AsyncHardwareSerial : public AsyncStream_T<SERIAL_MSS> {
   TaskHandle_t tskTx = NULL;
   TaskHandle_t tskRx = NULL;
   HardwareSerial *_serial;
-  EventGroupHandle_t _tsk_event = xEventGroupCreate();
 
   AsyncHardwareSerial(HardwareSerial &s);
   ~AsyncHardwareSerial();
