@@ -20,7 +20,9 @@
 #include "CircularBuffer.h"
 #include "MyLibCommon.h"
 
-#define SERIAL_MSS 1024
+// whatsoever the print rate should not exceed the maximum data rate
+// as it is async it will cause data lost (by overwrite)
+#define SERIAL_MSS (1024)
 #define WIFI_MSS 1436
 
 // add this in setup():
@@ -132,6 +134,7 @@ class AsyncHardwareSerial : public AsyncStream_T<SERIAL_MSS> {
   TaskHandle_t tskTx = NULL;
   TaskHandle_t tskRx = NULL;
   HardwareSerial *_serial;
+  EventGroupHandle_t _tsk_event = xEventGroupCreate();
 
   AsyncHardwareSerial(HardwareSerial &s);
   ~AsyncHardwareSerial();

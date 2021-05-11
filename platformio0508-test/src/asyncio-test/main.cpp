@@ -25,9 +25,11 @@ void setup() {
   asyncIOSetup();
 
   AsyncSerial.onData([](uint8_t* data, size_t len) {
+    AsyncSerial.lockBuf();
     AsyncSerial.print("ACK: ");
     AsyncSerial.write(data, len);
     AsyncSerial.println();
+    AsyncSerial.unlockBuf();
   });
 }
 
@@ -39,7 +41,7 @@ void printPerfInfo(PerfData& d) {
 PerfData perf_name(ap);
 PerfData perf_name(sp);
 
-#define text_to_test "Hello!"
+#define text_to_test "This is a macro that calls the xQueueGenericReceive() function.Receive an item from a queue. The item is received by copy so a buffer of adequate size must be provided. The number of bytes copied into the buffer was defined when the queue was created.This function must not be used in an interrupt service routine. See xQueueReceiveFromISR for an alternative that can."
 
 void loop() {
   perf_rawtype a;
@@ -47,13 +49,17 @@ void loop() {
 
   for (int i = 0; i < 10; i++) {
     perf_start(a);
+    AsyncSerial.lockBuf();
     AsyncSerial.print(text_to_test);
     AsyncSerial.println(i);
+    AsyncSerial.unlockBuf();
     perf_end(a, ap);
   }
   delay(500);
+  AsyncSerial.lockBuf();
   AsyncSerial.println();
   AsyncSerial.println();
+  AsyncSerial.unlockBuf();
   delay(500);
   for (int i = 0; i < 10; i++) {
     perf_start(a);

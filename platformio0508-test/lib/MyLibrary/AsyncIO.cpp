@@ -8,6 +8,9 @@
 #define TSK_SOCKET_RX_STACK 4096
 #define TSK_SERIAL_TX_STACK 4096
 #define TSK_SERIAL_RX_STACK 4096
+#define SERIAL_TX_DELAY 1
+// 115200 bps * 20 ms = 288 bytes < RxBufferSize
+#define SERIAL_RX_DELAY 20
 
 // TODO: reduce the use of heap (use static buffer instead of new)
 
@@ -20,6 +23,9 @@ AsyncHardwareSerial AsyncSerial(Serial);
 // ============
 // Main
 // ============
+
+#define TX_HALF_FULL_BIT BIT0
+#define ACK_TX_HALF_FULL_BIT BIT1
 
 namespace {
 
@@ -49,23 +55,33 @@ void socketTskRx(void* ps) {
 void serialTskTx(void* ps) {
   AsyncHardwareSerial* pSerial = (AsyncHardwareSerial*)ps;
   auto& buf = pSerial->_buf;
+  // for any buf operations should lock the buf mux (lockBuf/unlockBuf)
   auto& serial = *(pSerial->_serial);
   for (;;) {
-    delay(1);
-    size_t len;
-    if ((len = buf.length())) {
+    if (buf.length()) {
+      pSerial->lockBuf();  // lock mux
+      size_t len = buf.length();
       uint8_t* data = new uint8_t[len];
       buf.read(data, len);
+      pSerial->unlockBuf();  // unlock mux
+
       serial.write(data, len);
       delete[] data;
     }
+    pSerial->notifying = false;
+    xEventGroupClearBits(pSerial->_tsk_event, TX_HALF_FULL_BIT);
+    xEventGroupWaitBits(
+        pSerial->_tsk_event, /* The event group being tested. */
+        TX_HALF_FULL_BIT,    /* The bits within the event group to wait for. */
+        pdTRUE,              /* BIT_0 & BIT_4 should be cleared before returning. */
+        pdFALSE,             /* Don't wait for both bits, either bit will do. */
+        SERIAL_TX_DELAY);    /* Wait a maximum of 100ms for either bit to be set. */
   }
 }
 void serialTskRx(void* ps) {
   AsyncHardwareSerial* pSerial = (AsyncHardwareSerial*)ps;
   auto& serial = *(pSerial->_serial);
   for (;;) {
-    delay(1);
     if (pSerial->_onData_cb) {
       size_t len;
       if ((len = serial.available())) {
@@ -75,6 +91,7 @@ void serialTskRx(void* ps) {
         delete[] data;
       }
     }
+    delay(SERIAL_RX_DELAY);
   }
 }
 
@@ -226,7 +243,7 @@ void AsyncHardwareSerial::onData(AssDataHandler onData) {
 }
 
 void AsyncHardwareSerial::notifyTx() {
-  // TODO
+  xEventGroupSetBits(_tsk_event, TX_HALF_FULL_BIT);
 }
 
 AsyncHardwareSerial::~AsyncHardwareSerial() {
