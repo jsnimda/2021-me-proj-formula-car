@@ -1,8 +1,5 @@
-
-// Misc stuffs
-
-#ifndef MyLibCommon_h
-#define MyLibCommon_h
+#ifndef CPP_h
+#define CPP_h
 
 #include <Arduino.h>
 
@@ -37,4 +34,4 @@ inline String stringf(const char *format, ...) {
   return s;
 }
 
-#endif  // MyLibCommon_h
+#endif // CPP_h

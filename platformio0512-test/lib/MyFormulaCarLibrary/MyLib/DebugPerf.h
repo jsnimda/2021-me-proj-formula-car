@@ -1,10 +1,29 @@
+/*
+
+  Usage:
+
+  Global:
+    PerfData perf_name(#perf_data_name);  // Declare data object
+
+  Local:
+    perf_rawtype #loc_1, #loc_2, #loc_3;  // Declare local variable for timing use
+
+    perf_start(#loc_1);                   // Start timing
+
+    perf_end(#loc_1);                     // End timing
+    perf_end(#loc_1, #perf_data_name);    // End timing + Add measurement to perf data
+
+    perf_add(#loc_1, #perf_data_name);    // Add measurement to perf data
+
+*/
+
 #ifndef DebugPerf_h
 #define DebugPerf_h
 
 #include <Arduino.h>
 #include <limits.h>
 
-#include "MyLibCommon.h"
+#include "CommonIncludes.h"
 
 extern const double CCountPerMillisecond;
 
@@ -76,14 +95,14 @@ class PerfData {
   }
 };
 
-#define perf_name(x) x(#x)
+#define perf_name(perf_data_name) perf_data_name(#perf_data_name)
 #define perf_rawtype _perf_raw_type
-#define perf_start(x) x = _perf_now_raw()
-#define _perf_end1(x) x = _perf_now_raw() - x
-#define perf_add(x, perfData) perfData.add_entry(x)
-#define _perf_end2(x, perfData) \
-  _perf_end1(x);                \
-  perf_add(x, perfData);
+#define perf_start(loc) loc = _perf_now_raw()
+#define _perf_end1(loc) loc = _perf_now_raw() - loc
+#define perf_add(loc, perfData) perfData.add_entry(loc)
+#define _perf_end2(loc, perfData) \
+  _perf_end1(loc);                \
+  perf_add(loc, perfData);
 #define perf_clear(perfData) perfData.clear()
 
 // ref: https://stackoverflow.com/questions/11761703/overloading-macro-on-number-of-arguments
