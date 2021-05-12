@@ -22,15 +22,17 @@ Core 1: Controller, Sensors, loop(), etc
 /*
 
   Dependency
+  |-- <myssid.h>
   |-- <Common>
   |-- <CircularBuffer>
   |   |-- <Common>
   |-- <DebugPerf>
   |   |-- <Common>
   |-- <WiFiConnection>
-  |   |-- ...
+  |   |-- <myssid.h>
   |-- <AsyncIO>
-  |   |-- ...
+  |   |-- <Common>
+  |   |-- <CircularBuffer>
 
 */
 
@@ -53,6 +55,7 @@ inline void airConnSetup() {
 #if USE_WIFI
   wifiConnectionSetup();
 #endif
+  asyncIOSetup();
 }
 
 #endif  // AirConn_h

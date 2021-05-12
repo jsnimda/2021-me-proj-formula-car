@@ -8,6 +8,12 @@
 #include <Arduino.h>
 
 // ============
+// debug
+// ============
+
+void loga(String s);
+
+// ============
 // useful functions
 // ============
 

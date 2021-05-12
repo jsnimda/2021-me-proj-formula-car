@@ -28,29 +28,24 @@
 
 // add this in setup():
 void asyncIOSetup();
-void loga(String s);  // call AsyncSerial.printWithLock(s)
+void loga(String s);  // call AsyncSerial.printWithLock(s) if async
+
+typedef void (*AssDataHandler)(uint8_t* data, size_t len);
+typedef void (*AssConnectHandler)(AsyncClient*);
 
 // ============
 // AsyncStream
 // ============
 
-typedef void (*AssDataHandler)(uint8_t* data, size_t len);
-typedef void (*AssConnectHandler)(AsyncClient*);
-
-// class DataReader {
-//  public:
-//   virtual void onData(uint8_t *data, size_t len) = 0;
-// };
-
-template <size_t MSS>
-class AsyncStream_T : public Print {
+class AsyncStream : public Print {
  public:
   AssDataHandler _onData_cb = NULL;
   portMUX_TYPE _buf_mux = portMUX_INITIALIZER_UNLOCKED;
   CircularBuffer _buf;
+  size_t _mss;
 
-  AsyncStream_T() : _buf(MSS) {}
-  NONCOPYABLE(AsyncStream_T);
+  AsyncStream(size_t mss) : _buf(mss * BUF_SIZE_FACTOR), _mss(mss) {}
+  NONCOPYABLE(AsyncStream);
 
   virtual void onData(AssDataHandler cb) {
     _onData_cb = cb;
@@ -60,7 +55,7 @@ class AsyncStream_T : public Print {
   }
   virtual size_t write(const uint8_t* buffer, size_t size) override {
     size_t s = _buf.write(buffer, size);
-    if (_buf.length() >= MSS) {
+    if (_buf.length() >= _mss) {
       notifyTx();
     }
     return s;
@@ -92,7 +87,11 @@ class AsyncStream_T : public Print {
   }
 };
 
-class AsyncSocketSerial : public AsyncStream_T<WIFI_MSS> {
+// ============
+// AsyncSocketSerial
+// ============
+
+class AsyncSocketSerial : public AsyncStream {
  public:
   TaskHandle_t tskTx = NULL;
   TaskHandle_t tskRx = NULL;
@@ -123,7 +122,11 @@ class AsyncSocketSerial : public AsyncStream_T<WIFI_MSS> {
   }
 };
 
-class AsyncHardwareSerial : public AsyncStream_T<SERIAL_MSS> {
+// ============
+// AsyncHardwareSerial
+// ============
+
+class AsyncHardwareSerial : public AsyncStream {
  public:
   TaskHandle_t tskTx = NULL;
   TaskHandle_t tskRx = NULL;
@@ -136,7 +139,9 @@ class AsyncHardwareSerial : public AsyncStream_T<SERIAL_MSS> {
   void notifyTx();
 };
 
+#if CONFIG_USE_ASYNC_SERIAL
 extern AsyncHardwareSerial AsyncSerial;
+#endif
 
 // ============
 // Command Processor

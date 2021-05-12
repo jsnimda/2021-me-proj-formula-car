@@ -12,13 +12,13 @@
 // 115200 bps * 20 ms = 288 bytes < RxBufferSize
 #define SERIAL_RX_DELAY 20
 
-// TODO: reduce the use of heap (use static buffer instead of new)
-
 // ============
 // Extern
 // ============
 
+#if CONFIG_USE_ASYNC_SERIAL
 AsyncHardwareSerial AsyncSerial(Serial);
+#endif
 
 // ============
 // Main
@@ -28,15 +28,6 @@ AsyncHardwareSerial AsyncSerial(Serial);
 #define ACK_TX_HALF_FULL_BIT BIT1
 
 namespace {
-
-// // handle data in buffer that is being to send
-// TaskHandle_t taskAsyncTx_handle;
-// // handle onRead redirected by another task
-// TaskHandle_t taskAsyncRx_handle;
-// // handle Serial.available()
-// TaskHandle_t taskAsyncSerialRx_handle;
-
-// QueueHandle_t queueTx;
 
 void socketTskTx(void* ps) {
   // AsyncSocketSerial* pSocket = (AsyncSocketSerial*)ps;
@@ -94,7 +85,7 @@ void serialTskRx(void* ps) {
 // AsyncSocketSerial
 // ============
 
-AsyncSocketSerial::AsyncSocketSerial(int port) : port(port), server(port) {
+AsyncSocketSerial::AsyncSocketSerial(int port) : AsyncStream(WIFI_MSS), port(port), server(port) {
   server.setNoDelay(true);
 
   server.onClient([&](void*, AsyncClient* pc) {
@@ -136,7 +127,7 @@ AsyncSocketSerial::AsyncSocketSerial(int port) : port(port), server(port) {
       0);
 }
 void AsyncSocketSerial::onData(AssDataHandler cb) {
-  AsyncStream_T::onData(cb);
+  AsyncStream::onData(cb);
   if (!tskRx) {
     String tskName = stringf("RxPort%d", port);
     xTaskCreatePinnedToCore(
@@ -194,7 +185,7 @@ AsyncSocketSerial::~AsyncSocketSerial() {
 // AsyncHardwareSerial
 // ============
 
-AsyncHardwareSerial::AsyncHardwareSerial(HardwareSerial& s) : _serial(&s) {
+AsyncHardwareSerial::AsyncHardwareSerial(HardwareSerial& s) : AsyncStream(SERIAL_MSS), _serial(&s) {
   String tskName = "Tx";
   if (_serial == &Serial) {
     tskName += "Serial";
@@ -214,7 +205,7 @@ AsyncHardwareSerial::AsyncHardwareSerial(HardwareSerial& s) : _serial(&s) {
 }
 
 void AsyncHardwareSerial::onData(AssDataHandler onData) {
-  AsyncStream_T::onData(onData);
+  AsyncStream::onData(onData);
   if (!tskRx) {
     String tskName = "Rx";
     if (_serial == &Serial) {
@@ -251,17 +242,12 @@ AsyncHardwareSerial::~AsyncHardwareSerial() {
 
 void asyncIOSetup() {
   Serial.setRxBufferSize(1024);
-  // if (!queueTx) {
-  //   queueTx = xQueueCreate(32, sizeof(QueueTxData));
-  // }
-  // if (!taskAsyncTx_handle) {
-  //   xTaskCreatePinnedToCore(asyncTxTask, "asyncTxTask", 8192, NULL, ASYNC_TX_TASK_PRIORITY, &taskAsyncTx_handle, 0);
-  // }
-  // if (!taskAsyncRx_handle) {
-  //   xTaskCreatePinnedToCore(asyncRxTask, "asyncRxTask", 8192, NULL, ASYNC_RX_TASK_PRIORITY, &taskAsyncRx_handle, 0);
-  // }
 }
 
 void loga(String s) {
+#if CONFIG_USE_ASYNC_SERIAL
   AsyncSerial.lockedPrint(s);
+#else
+  Serial.print(s);
+#endif
 }
