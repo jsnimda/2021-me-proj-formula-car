@@ -34,8 +34,8 @@ void loga(String s);  // call AsyncSerial.printWithLock(s)
 // AsyncStream
 // ============
 
-typedef void (*AssDataHandler)(uint8_t *data, size_t len);
-typedef void (*AssConnectHandler)(AsyncClient *);
+typedef void (*AssDataHandler)(uint8_t* data, size_t len);
+typedef void (*AssConnectHandler)(AsyncClient*);
 
 // class DataReader {
 //  public:
@@ -55,7 +55,7 @@ class AsyncStream_T : public Print {
   size_t write(uint8_t c) override {
     return write(&c, 1);
   }
-  virtual size_t write(const uint8_t *buffer, size_t size) override {
+  virtual size_t write(const uint8_t* buffer, size_t size) override {
     size_t s = _buf.write(buffer, size);
     if (_buf.length() >= MSS) {
       notifyTx();
@@ -81,7 +81,7 @@ class AsyncStream_T : public Print {
     unlockBuf();
     return len;
   }
-  size_t lockedWrite(const uint8_t *buffer, size_t size) {
+  size_t lockedWrite(const uint8_t* buffer, size_t size) {
     lockBuf();
     size_t len = write(buffer, size);
     unlockBuf();
@@ -93,8 +93,8 @@ class AsyncStream_T : public Print {
   // ============
 
   AsyncStream_T() = default;
-  AsyncStream_T(const AsyncStream_T &) = delete;
-  AsyncStream_T &operator=(const AsyncStream_T &) = delete;
+  AsyncStream_T(const AsyncStream_T&) = delete;
+  AsyncStream_T& operator=(const AsyncStream_T&) = delete;
 };
 
 class AsyncSocketSerial : public AsyncStream_T<WIFI_MSS> {
@@ -104,7 +104,7 @@ class AsyncSocketSerial : public AsyncStream_T<WIFI_MSS> {
   const int port;  // server port, read only
   AsyncServer server;
   portMUX_TYPE _pClient_mux = portMUX_INITIALIZER_UNLOCKED;
-  AsyncClient *pClient = NULL;
+  AsyncClient* pClient = NULL;
   AssConnectHandler _onConnect_cb = NULL;
   AssConnectHandler _onDisconnect_cb = NULL;
 
@@ -114,7 +114,7 @@ class AsyncSocketSerial : public AsyncStream_T<WIFI_MSS> {
   void onData(AssDataHandler cb) override;
   void notifyTx() override;
 
-  void _client_setup(AsyncClient *pc);
+  void _client_setup(AsyncClient* pc);
 
   void begin() {
     server.begin();
@@ -132,9 +132,9 @@ class AsyncHardwareSerial : public AsyncStream_T<SERIAL_MSS> {
  public:
   TaskHandle_t tskTx = NULL;
   TaskHandle_t tskRx = NULL;
-  HardwareSerial *_serial;
+  HardwareSerial* _serial;
 
-  AsyncHardwareSerial(HardwareSerial &s);
+  AsyncHardwareSerial(HardwareSerial& s);
   ~AsyncHardwareSerial();
 
   void onData(AssDataHandler onData) override;

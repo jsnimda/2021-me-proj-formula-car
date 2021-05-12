@@ -63,7 +63,6 @@ void setup() {
   Serial.begin(115200);
   xTaskCreatePinnedToCore(taskA, "taskA", 4096, NULL, 5, &tskA_handle, 0);
   xTaskCreatePinnedToCore(taskB, "taskB", 4096, NULL, 5, &tskB_handle, 1);
-
 }
 
 void loop() {

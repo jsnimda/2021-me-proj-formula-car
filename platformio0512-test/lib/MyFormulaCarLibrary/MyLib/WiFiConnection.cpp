@@ -33,7 +33,7 @@ EventGroupHandle_t wifiConnectionEventGroup;
 TaskHandle_t wifiConnectionTaskHandle = NULL;
 portMUX_TYPE wifiConnectionTaskMux = portMUX_INITIALIZER_UNLOCKED;
 
-void wifiConnectionTask(void *args) {
+void wifiConnectionTask(void* args) {
   if (firstConnect) {
     firstConnect = false;
   } else {

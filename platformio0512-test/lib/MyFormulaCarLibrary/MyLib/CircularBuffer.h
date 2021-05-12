@@ -38,7 +38,7 @@ class CircularBuffer_T : public Print {
   size_t write(uint8_t c) override {
     return write(&c, 1);
   }
-  size_t write(const uint8_t *buffer, size_t size) override {
+  size_t write(const uint8_t* buffer, size_t size) override {
     size_t rem = remaining();
     if (size > rem) {
       overflow += size - rem;
@@ -94,10 +94,10 @@ class CircularBuffer_T : public Print {
     return size;
   }
 
-  size_t read(uint8_t &c) {
+  size_t read(uint8_t& c) {
     return read(&c, 1);
   }
-  size_t read(uint8_t *buffer, size_t size) {  // retrieve
+  size_t read(uint8_t* buffer, size_t size) {  // retrieve
     if (size > _len) {
       size = _len;
     }
