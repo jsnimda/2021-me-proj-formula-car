@@ -24,6 +24,7 @@ Core 1: Controller, Sensors, loop(), etc
   Dependency
   |-- <Common>
   |-- <CircularBuffer>
+  |   |-- <Common>
   |-- <DebugPerf>
   |   |-- <Common>
   |-- <WiFiConnection>

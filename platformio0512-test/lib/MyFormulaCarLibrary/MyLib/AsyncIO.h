@@ -47,7 +47,10 @@ class AsyncStream_T : public Print {
  public:
   AssDataHandler _onData_cb = NULL;
   portMUX_TYPE _buf_mux = portMUX_INITIALIZER_UNLOCKED;
-  CircularBuffer_T<MSS * BUF_SIZE_FACTOR> _buf;
+  CircularBuffer _buf;
+
+  AsyncStream_T() : _buf(MSS) {}
+  NONCOPYABLE(AsyncStream_T);
 
   virtual void onData(AssDataHandler cb) {
     _onData_cb = cb;
@@ -87,14 +90,6 @@ class AsyncStream_T : public Print {
     unlockBuf();
     return len;
   }
-
-  // ============
-  // Constructor / Rule of three
-  // ============
-
-  AsyncStream_T() = default;
-  AsyncStream_T(const AsyncStream_T&) = delete;
-  AsyncStream_T& operator=(const AsyncStream_T&) = delete;
 };
 
 class AsyncSocketSerial : public AsyncStream_T<WIFI_MSS> {
