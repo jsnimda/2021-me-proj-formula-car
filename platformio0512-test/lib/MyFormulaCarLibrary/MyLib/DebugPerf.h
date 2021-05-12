@@ -81,15 +81,15 @@ class PerfData {
     total_raw = 0;
     entries_count = 0;
   }
-  String dump() {
+  String dumpNoClear() {
     return stringf("%s:\r\n", name) +
            stringf("  min: %.6f ms (%llu)\r\n", min_ms(), min_raw) +
            stringf("  max: %.6f ms (%llu)\r\n", max_ms(), max_raw) +
            stringf("  avg: %.6f ms\r\n", avg_ms()) +
            stringf("  count: %d\r\n", entries_count);
   }
-  String dumpAndClear() {
-    String s = dump();
+  String dump() {
+    String s = dumpNoClear();
     clear();
     return s;
   }
