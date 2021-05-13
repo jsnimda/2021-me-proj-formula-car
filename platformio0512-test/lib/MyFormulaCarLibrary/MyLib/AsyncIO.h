@@ -222,12 +222,7 @@ class AsyncHardwareSerial : public BaseAsync {
 extern AsyncHardwareSerial AsyncSerial;
 #endif
 #if CONFIG_DEBUG_PERF
-#include "DebugPerf.h"
 extern PerfData pd_wifiWrite;
 #endif
-
-// ============
-// Command Processor
-// ============
 
 #endif  // AsyncIO_h

@@ -9,27 +9,33 @@ Core 0: WiFi, logging, etc
 Core 1: Controller, Sensors, loop(), etc
 */
 
+/*
+
+  TODO: handle buffer overflow
+    (allocate more memory or block until buffer is available)
+
+*/
+
 #ifndef USE_OTA
 #define USE_OTA 1
 #endif
 #ifndef USE_WIFI
 #define USE_WIFI 1
 #endif
-#ifndef CONFIG_USE_ASYNC_SERIAL
-#define CONFIG_USE_ASYNC_SERIAL 0
-#endif
-#ifndef CONFIG_DEBUG_PERF
-#define CONFIG_DEBUG_PERF 1
-#endif
+#include "myconfig.h"
 
 /*
 
   Dependency
+  |-- <myconfig.h>
   |-- <myssid.h>
   |-- <Common>
-  |-- <CircularBuffer>
-  |   |-- <Common>
+  |   |-- <myconfig.h>
+  |   |-- <DebugPerf>
   |-- <DebugPerf>
+  |   |-- <Common>
+  |
+  |-- <CircularBuffer>
   |   |-- <Common>
   |-- <WiFiConnection>
   |   |-- <myssid.h>
@@ -44,7 +50,6 @@ Core 1: Controller, Sensors, loop(), etc
 #include <ArduinoOTA.h>
 
 #include "MyLib/Common.h"
-#include "MyLib/DebugPerf.h"
 //
 #include "MyLib/AsyncIO.h"
 #include "MyLib/WiFiConnection.h"

@@ -22,7 +22,6 @@
 AsyncHardwareSerial AsyncSerial(Serial);
 #endif
 #if CONFIG_DEBUG_PERF
-#include "DebugPerf.h"
 PerfData pd_wifiWrite("wifiWrite");
 #else
 #define perf_loc(...)

@@ -1,13 +1,8 @@
 #ifndef Common_h
 #define Common_h
 
-#ifndef CONFIG_USE_ASYNC_SERIAL
-#define CONFIG_USE_ASYNC_SERIAL 0
-#endif
-#ifndef CONFIG_DEBUG_PERF
-#define CONFIG_DEBUG_PERF 1
-#endif
-
+#include "myconfig.h"
+//
 #include <Arduino.h>
 
 // ============
@@ -59,5 +54,11 @@ inline String stringf(const char* format, ...) {
 #define NONCOPYABLE(class_name)           \
   class_name(const class_name&) = delete; \
   class_name& operator=(const class_name&) = delete
+
+// ============
+// debug includes
+// ============
+
+#include "DebugPerf.h"
 
 #endif  // Common_h

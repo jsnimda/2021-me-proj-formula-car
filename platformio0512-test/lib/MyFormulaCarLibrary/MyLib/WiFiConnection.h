@@ -28,6 +28,8 @@
 #define WiFiConnection_h
 
 #include "myssid.h"
+//
+#include "Common.h"
 
 // TODO: support WiFiMulti
 // #define USE_WIFI_MULTI 1
