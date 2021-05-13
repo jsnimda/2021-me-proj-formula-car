@@ -248,6 +248,7 @@ void loga(String s) {
 #if CONFIG_USE_ASYNC_SERIAL
   AsyncSerial.lockedPrint(s);
 #else
+  Serial.flush();
   Serial.print(s);
 #endif
 }

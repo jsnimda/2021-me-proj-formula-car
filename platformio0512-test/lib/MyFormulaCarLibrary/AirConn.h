@@ -30,6 +30,7 @@ Core 1: Controller, Sensors, loop(), etc
   |   |-- <Common>
   |-- <WiFiConnection>
   |   |-- <myssid.h>
+  |   |-- <Common>
   |-- <AsyncIO>
   |   |-- <Common>
   |   |-- <CircularBuffer>

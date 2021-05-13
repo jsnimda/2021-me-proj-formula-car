@@ -9,13 +9,14 @@
 // ============
 
 #include <ESPmDNS.h>
-#include <HardwareSerial.h>
 #include <WiFi.h>
 
 #ifdef CPP_ENABLE_WIFI_MULTI
 #include <WiFiMulti.h>
 static WiFiMulti wifiMulti;
 #endif
+
+#include "Common.h"
 
 // ============
 // Main
@@ -28,8 +29,12 @@ static WiFiMulti wifiMulti;
 
 namespace {
 
+void log(String s) {
+  loga(s + "\r\n");
+}
+
 bool firstConnect = true;
-EventGroupHandle_t wifiConnectionEventGroup;
+// EventGroupHandle_t wifiConnectionEventGroup;
 TaskHandle_t wifiConnectionTaskHandle = NULL;
 portMUX_TYPE wifiConnectionTaskMux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -37,43 +42,32 @@ void wifiConnectionTask(void* args) {
   if (firstConnect) {
     firstConnect = false;
   } else {
-    Serial.flush();
-    Serial.println("WiFi disconnected. Trying to reconnect...");
+    log("WiFi disconnected. Trying to reconnect...");
   }
   bool flag = true;
   while (flag) {
-    xEventGroupClearBits(wifiConnectionEventGroup, 0xFF);
-
-    Serial.flush();
-    Serial.println("Connecting Wifi...");
+    log("Connecting Wifi...");
 
     WiFi._setStatus(WL_DISCONNECTED);  // the init status as STA_START (wifi init)
     WiFi.begin(mySSID, myPASSWORD);
 
-    xEventGroupWaitBits(
-        wifiConnectionEventGroup,        /* The event group being tested. */
-        ConnectionResult_BIT,            /* The bits within the event group to wait for. */
-        pdTRUE,                          /* BIT_0 & BIT_4 should be cleared before returning. */
-        pdFALSE,                         /* Don't wait for both bits, either bit will do. */
-        60 * 1000 / portTICK_PERIOD_MS); /* Wait a maximum of 100ms for either bit to be set. */
-    // or portMAX_DELAY
+    ulTaskNotifyTake(pdFALSE, 60 * 1000 / portTICK_PERIOD_MS);
 
     portENTER_CRITICAL(&wifiConnectionTaskMux);
     if (WiFi.status() == WL_CONNECTED) {
       wifiConnectionTaskHandle = NULL;
       flag = false;
     } else {
-      Serial.flush();
-      Serial.println("Connection failed. Trying to reconnect...");
+      log("Connection failed. Trying to reconnect...");
     }
     portEXIT_CRITICAL(&wifiConnectionTaskMux);
   }
   // handle already set to NULL, delete self
-  Serial.flush();
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  String s;
+  s = s + "\r\n" +
+      "WiFi connected\r\n" +
+      stringf("IP address: %s\r\n", WiFi.localIP().toString().c_str());
+  loga(s);
   vTaskDelete(NULL);
 }
 
@@ -82,7 +76,7 @@ void asyncWifiConnect() {
   if (wifiConnectionTaskHandle == NULL) {
     xTaskCreatePinnedToCore(wifiConnectionTask, "wifiConnectionTask", 8192, NULL, 10, &wifiConnectionTaskHandle, 0);
   } else {
-    xEventGroupSetBits(wifiConnectionEventGroup, ConnectionResult_BIT);
+    xTaskNotifyGive(wifiConnectionTaskHandle);
   }
   portEXIT_CRITICAL(&wifiConnectionTaskMux);
 }
@@ -92,7 +86,9 @@ void onWifiEvent(WiFiEvent_t event) {
     // connection fail or disconnected
     asyncWifiConnect();
   } else if (WiFi.status() == WL_CONNECTED) {
-    xEventGroupSetBits(wifiConnectionEventGroup, ConnectionResult_BIT);
+    portENTER_CRITICAL(&wifiConnectionTaskMux);
+    if (wifiConnectionTaskHandle) xTaskNotifyGive(wifiConnectionTaskHandle);
+    portEXIT_CRITICAL(&wifiConnectionTaskMux);
   }
 }
 
@@ -112,10 +108,6 @@ void wifiConnectionSetup() {
   wifiMulti.addAP(mySSID3, myPASSWORD3);
 #endif
 #endif
-
-  if (!wifiConnectionEventGroup) {
-    wifiConnectionEventGroup = xEventGroupCreate();
-  }
 
   MDNS.begin(myHOSTNAME);
   MDNS.enableArduino();
