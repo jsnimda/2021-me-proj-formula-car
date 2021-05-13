@@ -43,6 +43,8 @@ Core 1: Controller, Sensors, loop(), etc
   |-- <AsyncIO>
   |   |-- <Common>
   |   |-- <CircularBuffer>
+  |-- <LineCommand>
+  |   |-- ...
 
 */
 
@@ -52,6 +54,7 @@ Core 1: Controller, Sensors, loop(), etc
 #include "MyLib/Common.h"
 //
 #include "MyLib/AsyncIO.h"
+#include "MyLib/LineCommand.h"
 #include "MyLib/WiFiConnection.h"
 
 // ============

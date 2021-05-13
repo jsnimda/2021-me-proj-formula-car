@@ -72,14 +72,20 @@ void socketTskRx(void* ps) {
   while (!pSocket->_del) {
     if (pSocket->_onData_cb) {
       auto& rx_buf = *(pSocket->_p_rx_buf);
-      while (rx_buf.length()) {
-        pSocket->lockRx();
-        size_t len = min(rx_buf.length(), (size_t)WIFI_MSS);
-        uint8_t* data = new uint8_t[len];
-        rx_buf.read(data, len);
-        pSocket->unlockRx();
+      if (pSocket->_dump_rx) {
+        while (rx_buf.length()) {
+          pSocket->lockRx();
+          size_t len = min(rx_buf.length(), (size_t)WIFI_MSS);
+          uint8_t* data = new uint8_t[len];
+          rx_buf.read(data, len);
+          pSocket->unlockRx();
 
-        pSocket->_onData_cb(data, len);
+          pSocket->_onData_cb(data, len);
+        }
+      } else {
+        if (rx_buf.length()) {
+          pSocket->_onData_cb(NULL, rx_buf.length());  // no dump, notify only
+        }
       }
     }
     ulTaskNotifyTake(pdFALSE, SOCKET_RX_DELAY / portTICK_PERIOD_MS);

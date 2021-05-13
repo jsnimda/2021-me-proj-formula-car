@@ -13,6 +13,8 @@
 
 #include <Arduino.h>
 
+#include <functional>
+
 // Arduino.h must include first
 
 #include <AsyncTCP.h>
@@ -30,9 +32,12 @@
 void asyncIOSetup();
 void loga(String s);  // call AsyncSerial.printWithLock(s) if async
 
-typedef void (*AssDataHandler)(uint8_t* data, size_t len);
-typedef void (*AssConnectHandler)(AsyncClient*);
-typedef void (*AssDataNoClearHandler)(size_t len);  // rx buf no clear
+// typedef void (*AssDataHandler)(uint8_t* data, size_t len);
+// typedef void (*AssConnectHandler)(AsyncClient*);
+
+// std::function can handle captured lambda no problem
+typedef std::function<void(uint8_t* data, size_t len)> AssDataHandler;
+typedef std::function<void(AsyncClient*)> AssConnectHandler;
 
 // ============
 // AsyncStream
@@ -158,6 +163,7 @@ class AsyncSocketSerial : public virtual BaseAsync {
   AssConnectHandler _onDisconnect_cb = NULL;
   portMUX_TYPE _rx_buf_mux = portMUX_INITIALIZER_UNLOCKED;
   CircularBuffer* _p_rx_buf = NULL;
+  bool _dump_rx = true;  // copy rx and clear before on data
 
   AsyncSocketSerial(int port);
 
