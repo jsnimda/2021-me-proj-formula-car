@@ -32,6 +32,7 @@ void loga(String s);  // call AsyncSerial.printWithLock(s) if async
 
 typedef void (*AssDataHandler)(uint8_t* data, size_t len);
 typedef void (*AssConnectHandler)(AsyncClient*);
+typedef void (*AssDataNoClearHandler)(size_t len);  // rx buf no clear
 
 // ============
 // AsyncStream
