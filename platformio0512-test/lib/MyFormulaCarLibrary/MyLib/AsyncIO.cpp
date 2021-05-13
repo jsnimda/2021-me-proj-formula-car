@@ -8,6 +8,8 @@
 #define TSK_SOCKET_RX_STACK 4096
 #define TSK_SERIAL_TX_STACK 4096
 #define TSK_SERIAL_RX_STACK 4096
+#define SOCKET_TX_DELAY 20
+#define SOCKET_RX_DELAY (3600 * 1000)
 #define SERIAL_TX_DELAY 20
 // 115200 bps * 20 ms = 288 bytes < RxBufferSize
 #define SERIAL_RX_DELAY 20
@@ -21,7 +23,7 @@ AsyncHardwareSerial AsyncSerial(Serial);
 #endif
 
 // ============
-// Main
+// Tasks
 // ============
 
 #define TX_HALF_FULL_BIT BIT0
@@ -30,42 +32,80 @@ AsyncHardwareSerial AsyncSerial(Serial);
 namespace {
 
 void socketTskTx(void* ps) {
-  // AsyncSocketSerial* pSocket = (AsyncSocketSerial*)ps;
-  for (;;) {
-    // TODO
-    delay(3600 * 1000);
+  // TODO: resolve race condition when client is deleted
+  AsyncSocketSerial* pSocket = (AsyncSocketSerial*)ps;
+  pSocket->_inc_del_counter();
+  auto& buf = pSocket->_buf;
+  while (!pSocket->_del) {
+    AsyncClient* pc = pSocket->pClient;
+    if (pc) {
+      while (pc == pSocket->pClient && !pSocket->_del) {
+        while (buf.length()) {
+          pSocket->lock();  // lock mux
+          size_t len = min(buf.length(), (size_t)WIFI_MSS);
+          uint8_t* data = new uint8_t[len];
+          buf.read(data, len);
+          pSocket->unlock();  // unlock mux
+
+          pc->write((const char*)data, len);
+          delete[] data;
+        }
+        ulTaskNotifyTake(pdFALSE, SOCKET_TX_DELAY / portTICK_PERIOD_MS);
+      }
+    }
+    ulTaskNotifyTake(pdFALSE, SOCKET_TX_DELAY / portTICK_PERIOD_MS);
   }
+  pSocket->_dec_del_counter();
+  vTaskDelete(NULL);
 }
 void socketTskRx(void* ps) {
-  // AsyncSocketSerial* pSocket = (AsyncSocketSerial*)ps;
-  for (;;) {
-    // TODO
-    delay(3600 * 1000);
+  AsyncSocketSerial* pSocket = (AsyncSocketSerial*)ps;
+  auto& rx_buf = *(pSocket->_p_rx_buf);
+  pSocket->_inc_del_counter();
+  while (!pSocket->_del) {
+    if (pSocket->_onData_cb) {
+      while (rx_buf.length()) {
+        pSocket->lockRx();
+        size_t len = min(rx_buf.length(), (size_t)WIFI_MSS);
+        uint8_t* data = new uint8_t[len];
+        pSocket->unlockRx();
+
+        pSocket->_onData_cb(data, len);
+      }
+    }
+    ulTaskNotifyTake(pdFALSE, SOCKET_RX_DELAY / portTICK_PERIOD_MS);
   }
+  pSocket->_dec_del_counter();
+  vTaskDelete(NULL);
 }
 void serialTskTx(void* ps) {
   AsyncHardwareSerial* pSerial = (AsyncHardwareSerial*)ps;
+  pSerial->_inc_del_counter();
   auto& buf = pSerial->_buf;
   // for any buf operations should lock the buf mux (lockBuf/unlockBuf)
   auto& serial = *(pSerial->_serial);
-  for (;;) {
+  while (!pSerial->_del) {
     while (buf.length()) {
-      pSerial->lockBuf();  // lock mux
+      pSerial->lock();  // lock mux
       size_t len = buf.length();
       uint8_t* data = new uint8_t[len];
       buf.read(data, len);
-      pSerial->unlockBuf();  // unlock mux
+      pSerial->unlock();  // unlock mux
 
+      serial.flush();
       serial.write(data, len);
       delete[] data;
     }
     ulTaskNotifyTake(pdFALSE, SERIAL_TX_DELAY / portTICK_PERIOD_MS);
   }
+  pSerial->_dec_del_counter();
+  vTaskDelete(NULL);
 }
 void serialTskRx(void* ps) {
   AsyncHardwareSerial* pSerial = (AsyncHardwareSerial*)ps;
+  pSerial->_inc_del_counter();
   auto& serial = *(pSerial->_serial);
-  for (;;) {
+  while (!pSerial->_del) {
     if (pSerial->_onData_cb) {
       size_t len;
       if ((len = serial.available())) {
@@ -77,6 +117,8 @@ void serialTskRx(void* ps) {
     }
     delay(SERIAL_RX_DELAY);
   }
+  pSerial->_dec_del_counter();
+  vTaskDelete(NULL);
 }
 
 }  // namespace
@@ -85,18 +127,13 @@ void serialTskRx(void* ps) {
 // AsyncSocketSerial
 // ============
 
-AsyncSocketSerial::AsyncSocketSerial(int port) : AsyncStream(WIFI_MSS), port(port), server(port) {
+AsyncSocketSerial::AsyncSocketSerial(int port)
+    : BaseAsync(WIFI_MSS), port(port), server(port) {
   server.setNoDelay(true);
 
   server.onClient([&](void*, AsyncClient* pc) {
     if (!pc) return;
-    AsyncClient* old_pClient = NULL;
-    portENTER_CRITICAL(&_pClient_mux);
-    if (pClient) {
-      old_pClient = pClient;
-    }
-    pClient = pc;
-    portEXIT_CRITICAL(&_pClient_mux);
+    AsyncClient* old_pClient = _set_pClient(pc);
     if (old_pClient) {
       if (old_pClient->connected()) {
         old_pClient->write("\r\nDevice is connected on another client.\r\n");
@@ -104,7 +141,8 @@ AsyncSocketSerial::AsyncSocketSerial(int port) : AsyncStream(WIFI_MSS), port(por
       delete old_pClient;  // new from AsyncTCP.cpp:1297
     }
 
-    _client_setup(pc);
+    notifyTx();  // check and send tx buffer
+
     AsyncClient& serverClient = *pc;
     String s = stringf("New client: %s\r\n", serverClient.remoteIP().toString().c_str()) +
                stringf("  %s:%d -> %s:%d\r\n",
@@ -116,6 +154,7 @@ AsyncSocketSerial::AsyncSocketSerial(int port) : AsyncStream(WIFI_MSS), port(por
   },
                   NULL);
 
+  // _create_tskTx
   String tskName = stringf("TxPort%d", port);
   xTaskCreatePinnedToCore(
       socketTskTx,
@@ -126,30 +165,23 @@ AsyncSocketSerial::AsyncSocketSerial(int port) : AsyncStream(WIFI_MSS), port(por
       &(this->tskTx),
       0);
 }
-void AsyncSocketSerial::onData(AssDataHandler cb) {
-  AsyncStream::onData(cb);
-  if (!tskRx) {
-    String tskName = stringf("RxPort%d", port);
-    xTaskCreatePinnedToCore(
-        socketTskRx,
-        tskName.c_str(),
-        TSK_SOCKET_RX_STACK,
-        this,
-        TSK_SOCKET_RX_PRIORITY,
-        &(this->tskRx),
-        0);
-  }
-}
-void AsyncSocketSerial::notifyTx() {
-  // TODO
+void AsyncSocketSerial::_create_tskRx() {
+  String tskName = stringf("RxPort%d", port);
+  xTaskCreatePinnedToCore(
+      socketTskRx,
+      tskName.c_str(),
+      TSK_SOCKET_RX_STACK,
+      this,
+      TSK_SOCKET_RX_PRIORITY,
+      &(this->tskRx),
+      0);
+  _p_rx_buf = new CircularBuffer(_buf._cap);
 }
 void AsyncSocketSerial::_client_setup(AsyncClient* pc) {
   if (!pc) return;
   AsyncClient& serverClient = *pc;
   serverClient.onData([&](void*, AsyncClient*, void* data, size_t len) {
-    if (_onData_cb) {
-      _onData_cb((uint8_t*)data, len);
-    }
+    _notify_Rx((uint8_t*)data, len);
   },
                       NULL);
   serverClient.onDisconnect([&](void*, AsyncClient* pc) {
@@ -164,20 +196,39 @@ void AsyncSocketSerial::_client_setup(AsyncClient* pc) {
     delete pc;  // new from AsyncTCP.cpp:1297
   });
 }
-AsyncSocketSerial::~AsyncSocketSerial() {
-  if (tskTx) vTaskDelete(tskTx);
-  if (tskRx) vTaskDelete(tskRx);
-  AsyncClient* old_pClient = NULL;
-  portENTER_CRITICAL(&_pClient_mux);
-  if (pClient) {
-    old_pClient = pClient;
+void AsyncSocketSerial::_notify_Rx(uint8_t* data, size_t len) {
+  if (_p_rx_buf) {
+    portENTER_CRITICAL(&_rx_buf_mux);
+    _p_rx_buf->write(data, len);
+    portEXIT_CRITICAL(&_rx_buf_mux);
   }
-  portEXIT_CRITICAL(&_pClient_mux);
+  if (tskRx) xTaskNotifyGive(tskRx);
+}
+void AsyncSocketSerial::destroy() {
+  if (_del) return;
+  BaseAsync::destroy();
+  AsyncClient* old_pClient = _set_pClient(NULL);
   if (old_pClient) {
     if (old_pClient->connected()) {
       old_pClient->write("\r\nServer closed.\r\n");
     }
     delete old_pClient;  // new from AsyncTCP.cpp:1297
+  }
+  server.end();  // end server and client avoid accidentally calling _notify_Rx by onData
+}
+AsyncSocketSerial::~AsyncSocketSerial() {
+  AsyncClient* old_pClient = _set_pClient(NULL);
+  if (old_pClient) {
+    if (old_pClient->connected()) {
+      old_pClient->write("\r\nServer closed.\r\n");
+    }
+    delete old_pClient;  // new from AsyncTCP.cpp:1297
+  }
+  if (_p_rx_buf) {
+    portENTER_CRITICAL(&_rx_buf_mux);
+    delete _p_rx_buf;
+    _p_rx_buf = NULL;
+    portEXIT_CRITICAL(&_rx_buf_mux);
   }
 }
 
@@ -185,7 +236,8 @@ AsyncSocketSerial::~AsyncSocketSerial() {
 // AsyncHardwareSerial
 // ============
 
-AsyncHardwareSerial::AsyncHardwareSerial(HardwareSerial& s) : AsyncStream(SERIAL_MSS), _serial(&s) {
+AsyncHardwareSerial::AsyncHardwareSerial(HardwareSerial& s) : BaseAsync(SERIAL_MSS), _serial(&s) {
+  // _create_tskTx
   String tskName = "Tx";
   if (_serial == &Serial) {
     tskName += "Serial";
@@ -203,38 +255,25 @@ AsyncHardwareSerial::AsyncHardwareSerial(HardwareSerial& s) : AsyncStream(SERIAL
       &(this->tskTx),
       0);
 }
-
-void AsyncHardwareSerial::onData(AssDataHandler onData) {
-  AsyncStream::onData(onData);
-  if (!tskRx) {
-    String tskName = "Rx";
-    if (_serial == &Serial) {
-      tskName += "Serial";
-    } else if (_serial == &Serial1) {
-      tskName += "Serial1";
-    } else if (_serial == &Serial2) {
-      tskName += "Serial2";
-    }
-    xTaskCreatePinnedToCore(
-        serialTskRx,
-        tskName.c_str(),
-        TSK_SERIAL_RX_STACK,
-        this,
-        TSK_SERIAL_RX_PRIORITY,
-        &(this->tskRx),
-        0);
+void AsyncHardwareSerial::_create_tskRx() {
+  String tskName = "Rx";
+  if (_serial == &Serial) {
+    tskName += "Serial";
+  } else if (_serial == &Serial1) {
+    tskName += "Serial1";
+  } else if (_serial == &Serial2) {
+    tskName += "Serial2";
   }
+  xTaskCreatePinnedToCore(
+      serialTskRx,
+      tskName.c_str(),
+      TSK_SERIAL_RX_STACK,
+      this,
+      TSK_SERIAL_RX_PRIORITY,
+      &(this->tskRx),
+      0);
 }
-
-void AsyncHardwareSerial::notifyTx() {
-  // ref: https://www.freertos.org/RTOS_Task_Notification_As_Binary_Semaphore.html
-  xTaskNotifyGive(tskTx);
-}
-
-AsyncHardwareSerial::~AsyncHardwareSerial() {
-  if (tskTx) vTaskDelete(tskTx);
-  if (tskRx) vTaskDelete(tskRx);
-}
+AsyncHardwareSerial::~AsyncHardwareSerial() {}
 
 // ============
 // Export

@@ -22,11 +22,6 @@ static WiFiMulti wifiMulti;
 // Main
 // ============
 
-#define ConnectionResult_BIT BIT0
-// #define Connecting_BIT BIT8
-// #define Connected_BIT BIT9
-// #define Disconnected_BIT BIT10
-
 namespace {
 
 void log(String s) {
@@ -41,13 +36,12 @@ portMUX_TYPE wifiConnectionTaskMux = portMUX_INITIALIZER_UNLOCKED;
 void wifiConnectionTask(void* args) {
   if (firstConnect) {
     firstConnect = false;
+    log("Connecting Wifi...");
   } else {
     log("WiFi disconnected. Trying to reconnect...");
   }
   bool flag = true;
   while (flag) {
-    log("Connecting Wifi...");
-
     WiFi._setStatus(WL_DISCONNECTED);  // the init status as STA_START (wifi init)
     WiFi.begin(mySSID, myPASSWORD);
 
@@ -58,7 +52,7 @@ void wifiConnectionTask(void* args) {
       wifiConnectionTaskHandle = NULL;
       flag = false;
     } else {
-      log("Connection failed. Trying to reconnect...");
+      log("WiFi connection failed. Trying to reconnect...");
     }
     portEXIT_CRITICAL(&wifiConnectionTaskMux);
   }
