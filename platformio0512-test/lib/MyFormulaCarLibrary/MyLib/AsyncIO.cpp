@@ -60,14 +60,15 @@ void socketTskTx(void* ps) {
 }
 void socketTskRx(void* ps) {
   AsyncSocketSerial* pSocket = (AsyncSocketSerial*)ps;
-  auto& rx_buf = *(pSocket->_p_rx_buf);
   pSocket->_inc_del_counter();
   while (!pSocket->_del) {
     if (pSocket->_onData_cb) {
+      auto& rx_buf = *(pSocket->_p_rx_buf);
       while (rx_buf.length()) {
         pSocket->lockRx();
         size_t len = min(rx_buf.length(), (size_t)WIFI_MSS);
         uint8_t* data = new uint8_t[len];
+        rx_buf.read(data, len);
         pSocket->unlockRx();
 
         pSocket->_onData_cb(data, len);
@@ -166,6 +167,7 @@ AsyncSocketSerial::AsyncSocketSerial(int port)
       0);
 }
 void AsyncSocketSerial::_create_tskRx() {
+  _p_rx_buf = new CircularBuffer(_buf._cap);
   String tskName = stringf("RxPort%d", port);
   xTaskCreatePinnedToCore(
       socketTskRx,
@@ -175,7 +177,6 @@ void AsyncSocketSerial::_create_tskRx() {
       TSK_SOCKET_RX_PRIORITY,
       &(this->tskRx),
       0);
-  _p_rx_buf = new CircularBuffer(_buf._cap);
 }
 void AsyncSocketSerial::_client_setup(AsyncClient* pc) {
   if (!pc) return;
@@ -198,9 +199,9 @@ void AsyncSocketSerial::_client_setup(AsyncClient* pc) {
 }
 void AsyncSocketSerial::_notify_Rx(uint8_t* data, size_t len) {
   if (_p_rx_buf) {
-    portENTER_CRITICAL(&_rx_buf_mux);
+    lockRx();
     _p_rx_buf->write(data, len);
-    portEXIT_CRITICAL(&_rx_buf_mux);
+    unlockRx();
   }
   if (tskRx) xTaskNotifyGive(tskRx);
 }
@@ -225,10 +226,10 @@ AsyncSocketSerial::~AsyncSocketSerial() {
     delete old_pClient;  // new from AsyncTCP.cpp:1297
   }
   if (_p_rx_buf) {
-    portENTER_CRITICAL(&_rx_buf_mux);
+    lockRx();
     delete _p_rx_buf;
     _p_rx_buf = NULL;
-    portEXIT_CRITICAL(&_rx_buf_mux);
+    unlockRx();
   }
 }
 

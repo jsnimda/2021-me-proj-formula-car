@@ -140,7 +140,7 @@ class BaseAsync : public AsyncStream {
 
  protected:
   // heap only
-  virtual ~BaseAsync() = 0;
+  virtual ~BaseAsync() {}
 };
 
 // ============
@@ -184,7 +184,7 @@ class AsyncSocketSerial : public virtual BaseAsync {
   void onDisconnect(AssConnectHandler cb) {
     _onDisconnect_cb = cb;
   }
-  
+
   void lockRx() {
     portENTER_CRITICAL(&_rx_buf_mux);
   }
