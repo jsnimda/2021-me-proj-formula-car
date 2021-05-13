@@ -214,8 +214,16 @@ class AsyncHardwareSerial : public BaseAsync {
   ~AsyncHardwareSerial() override;
 };
 
+// ============
+// Extern
+// ============
+
 #if CONFIG_USE_ASYNC_SERIAL
 extern AsyncHardwareSerial AsyncSerial;
+#endif
+#if CONFIG_DEBUG_PERF
+#include "DebugPerf.h"
+extern PerfData pd_wifiWrite;
 #endif
 
 // ============

@@ -4,6 +4,9 @@
 #ifndef CONFIG_USE_ASYNC_SERIAL
 #define CONFIG_USE_ASYNC_SERIAL 0
 #endif
+#ifndef CONFIG_DEBUG_PERF
+#define CONFIG_DEBUG_PERF 1
+#endif
 
 #include <Arduino.h>
 

@@ -18,6 +18,9 @@ Core 1: Controller, Sensors, loop(), etc
 #ifndef CONFIG_USE_ASYNC_SERIAL
 #define CONFIG_USE_ASYNC_SERIAL 0
 #endif
+#ifndef CONFIG_DEBUG_PERF
+#define CONFIG_DEBUG_PERF 1
+#endif
 
 /*
 
@@ -41,9 +44,9 @@ Core 1: Controller, Sensors, loop(), etc
 #include <ArduinoOTA.h>
 
 #include "MyLib/Common.h"
+#include "MyLib/DebugPerf.h"
 //
 #include "MyLib/AsyncIO.h"
-#include "MyLib/DebugPerf.h"
 #include "MyLib/WiFiConnection.h"
 
 // ============

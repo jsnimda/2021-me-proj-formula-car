@@ -21,13 +21,19 @@
 #if CONFIG_USE_ASYNC_SERIAL
 AsyncHardwareSerial AsyncSerial(Serial);
 #endif
+#if CONFIG_DEBUG_PERF
+#include "DebugPerf.h"
+PerfData pd_wifiWrite("wifiWrite");
+#else
+#define perf_loc(...)
+#define perf_start(loc)
+#define perf_add(loc, perfData)
+#define perf_end(...)
+#endif
 
 // ============
 // Tasks
 // ============
-
-#define TX_HALF_FULL_BIT BIT0
-#define ACK_TX_HALF_FULL_BIT BIT1
 
 namespace {
 
@@ -36,6 +42,7 @@ void socketTskTx(void* ps) {
   AsyncSocketSerial* pSocket = (AsyncSocketSerial*)ps;
   pSocket->_inc_del_counter();
   auto& buf = pSocket->_buf;
+  perf_loc(_a);
   while (!pSocket->_del) {
     AsyncClient* pc = pSocket->pClient;
     if (pc) {
@@ -47,7 +54,9 @@ void socketTskTx(void* ps) {
           buf.read(data, len);
           pSocket->unlock();  // unlock mux
 
+          perf_start(_a);
           pc->write((const char*)data, len);
+          perf_end(_a, pd_wifiWrite);
           delete[] data;
         }
         ulTaskNotifyTake(pdFALSE, SOCKET_TX_DELAY / portTICK_PERIOD_MS);

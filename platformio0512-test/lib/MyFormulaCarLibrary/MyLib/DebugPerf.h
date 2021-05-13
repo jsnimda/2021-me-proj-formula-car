@@ -82,6 +82,13 @@ class PerfData {
     entries_count = 0;
   }
   String dumpNoClear() {
+    if (entries_count == 0) {
+      return stringf("%s:\r\n", name) +
+             stringf("  min: %.6f ms (%llu)\r\n", 0.0, 0ull) +
+             stringf("  max: %.6f ms (%llu)\r\n", 0.0, 0ull) +
+             stringf("  avg: %.6f ms\r\n", 0.0) +
+             stringf("  count: %d\r\n", 0);
+    }
     return stringf("%s:\r\n", name) +
            stringf("  min: %.6f ms (%llu)\r\n", min_ms(), min_raw) +
            stringf("  max: %.6f ms (%llu)\r\n", max_ms(), max_raw) +
@@ -97,6 +104,7 @@ class PerfData {
 
 #define perf_name(perf_data_name) perf_data_name(#perf_data_name)
 #define perf_rawtype _perf_raw_type
+#define perf_loc(...) perf_rawtype __VA_ARGS__
 #define perf_start(loc) loc = _perf_now_raw()
 #define _perf_end1(loc) loc = _perf_now_raw() - loc
 #define perf_add(loc, perfData) perfData.add_entry(loc)
