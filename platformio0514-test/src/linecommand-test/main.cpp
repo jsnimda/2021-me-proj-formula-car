@@ -21,4 +21,9 @@ void setup() {
 
 void loop() {
   delay(3000);
+  delay(10 * 1000);
+  print_backtrace();
+  Serial.flush();
+  delay(500);
+  abort();
 }

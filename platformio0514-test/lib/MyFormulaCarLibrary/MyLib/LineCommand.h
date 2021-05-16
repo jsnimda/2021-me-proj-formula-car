@@ -134,15 +134,12 @@ class LineProcessor {
     while (_find_line(data, len)) {
       onLine((char*)data);
       delete[] data;
-
-      scanned = 0;
-      ind = buf->_start;
     }
   }
 
   void reset() {  // this will also clear last
     scanned = 0;
-    ind = buf->_start;
+    ind = buf._ptr->_start;  // no lock here
     last = '\0';
   }
 
@@ -164,6 +161,8 @@ class LineProcessor {
     data = new uint8_t[scanned + 1];
     len = buf->read(data, scanned);
     data[len] = '\0';
+    scanned = 0;
+    ind = buf->_start;
   }
 
   bool _find_line(uint8_t*& data, size_t& len) {  // return len > 0

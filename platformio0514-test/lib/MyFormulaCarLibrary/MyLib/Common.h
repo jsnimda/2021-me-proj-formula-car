@@ -18,6 +18,8 @@
 // debug
 // ============
 
+#include "debug.h"
+
 void loga(String s);  // serial only
 void logb(String s);  // wifi only
 void logc(String s);  // both
@@ -119,6 +121,7 @@ class with_lock_ptr : public lock_base {
   T* operator->() {
     if (_mux.count == 0) {
       loge(stringf("forget to lock? in %s", __PRETTY_FUNCTION__));
+      abort();
     }
     return _ptr;
   }
