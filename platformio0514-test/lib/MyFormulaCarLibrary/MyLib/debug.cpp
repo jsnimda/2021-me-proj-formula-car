@@ -46,12 +46,12 @@ void print_backtrace() {
   // not sure how stack frame works, so here just search for the match function address
 
   uint32_t addr = (intptr_t)__builtin_return_address(0) - 3;
-  uint32_t pc = 0, sp = (uint32_t)(p_tcb->pxDummy1);
+  uint32_t pc = 0, sp = (uint32_t)(p_tcb->pxDummy1) - 0x10 * 0x50;
   uint32_t _sp = sp;
 
   uint32_t* entry_pairs = new uint32_t[100 * 2];  // pc:sp
   size_t ind = 0;
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < 0x100; i++) {
     pc = *((uint32_t*)(sp - 0x10));
     if (disp_pc(pc - 3) == addr) {
       break;
@@ -66,9 +66,11 @@ void print_backtrace() {
       }
       sp = *((uint32_t*)(sp - 0x10 + 4));
       // putEntry(pc - 3, sp) here
-      entry_pairs[ind] = pc - 3;
-      entry_pairs[ind + 1] = sp;
-      ind += 2;
+      if (i != 0) {  // first and second i is the same pc
+        entry_pairs[ind] = pc - 3;
+        entry_pairs[ind + 1] = sp;
+        ind += 2;
+      }
       pc = *((uint32_t*)(psp - 0x10));
       if (pc < 0x40000000) {
         break;
@@ -90,7 +92,7 @@ void print_backtrace() {
     s += " ???";
     s += stringf("\r\n_sp: %08x", _sp);
     s += stringf("\r\nsp: %08x", sp);
-    s += stringf("\r\np_tcb->pxDummy1: %08x", p_tcb->pxDummy1);
+    s += stringf("\r\np_tcb->pxDummy1: %08x", (uint32_t)(p_tcb->pxDummy1));
   }
   s += "\r\n";
 
