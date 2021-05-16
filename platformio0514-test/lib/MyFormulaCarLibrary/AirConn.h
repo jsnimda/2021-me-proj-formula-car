@@ -54,8 +54,9 @@ Core 1: Controller, Sensors, loop(), etc
 #include "MyLib/Common.h"
 //
 #include "MyLib/AsyncIO.h"
-#include "MyLib/LineCommand.h"
+#include "MyLib/CommandServer.h"
 #include "MyLib/WiFiConnection.h"
+#include "MyLib/commands.h"
 
 // ============
 // Functions

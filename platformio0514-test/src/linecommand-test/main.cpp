@@ -3,23 +3,20 @@
 
 #include "AirConn.h"
 
-AsyncSocketSerial* pTcpSerial = new AsyncSocketSerial(23);  // remember to begin()
-AsyncSocketSerial& tcpSerial = *pTcpSerial;
-SocketCommandProcessor cmd = pTcpSerial;
+CommandServer server(23);
 
 void setup() {
   Serial.begin(115200);
   airConnSetup();
 
-  cmd.use(basic_route);
-  cmd.use([](Line& c) {
+  server.use(core_r);
+  server.use([](Line& c) {
     if (c.on("haha")) {
       c.setResponse("goodbye!");
     }
   });
-  cmd.attach();
 
-  tcpSerial.begin();
+  server.begin();
 }
 
 void loop() {

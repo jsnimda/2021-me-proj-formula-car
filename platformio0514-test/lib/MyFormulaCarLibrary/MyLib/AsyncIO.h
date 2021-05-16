@@ -71,14 +71,14 @@ class BaseAsyncResource : public BaseResource {
     if (_tskTx) {
       xTaskNotifyGive(_tskTx);
     } else {
-      loge(stringf("Tx%s not exist", _name));
+      loge(stringf("Tx%s not exist", _name.c_str()));
     }
   }
   void notifyRx() {
     if (_tskRx) {
       xTaskNotifyGive(_tskRx);
     } else {
-      loge(stringf("Rx%s not exist", _name));
+      loge(stringf("Rx%s not exist", _name.c_str()));
     }
   }
 
@@ -170,10 +170,56 @@ class SocketServerResource : public BaseAsyncResource {
 // server class
 // ============
 
-class BaseSocketServer {
+// template <typename T>  // T : SocketServerResource
+class BaseSocketServer : Print {
  public:
-  typedef std::function<void(BaseSocketServer*, uint8_t* data, size_t len)> DataHandler;
-  typedef std::function<void(BaseSocketServer*, AsyncClient*)> ConnectHandler;
+  using DataHandler = BaseAsyncResource::DataHandler;
+  using ConnectHandler = SocketServerResource::ConnectHandler;
+
+  SocketServerResource* resource;
+
+  BaseSocketServer(int port) : resource(new SocketServerResource(port)) {}
+  virtual ~BaseSocketServer() {
+    resource->release();
+  }
+
+  virtual void begin() {
+    resource->begin();
+  }
+
+  size_t write(uint8_t c) override {
+    return write(&c, 1);
+  }
+  size_t write(const uint8_t* buffer, size_t size) override {
+    auto& buf = resource->_buf_tx;
+    return buf->write(buffer, size);
+  }
+
+  void onData(DataHandler cb) {
+    resource->_onData_cb = cb;
+  }
+  void onConnect(ConnectHandler cb) {
+    resource->_onConnect_cb = cb;
+  }
+  void onDisconnect(ConnectHandler cb) {
+    resource->_onDisconnect_cb = cb;
+  }
+
+  void lockedPrint(String s) {
+    auto& buf = resource->_buf_tx;
+    buf.lock();
+    print(s);
+    buf.unlock();
+  }
+  void lockedWrite(const uint8_t* data, size_t len) {
+    auto& buf = resource->_buf_tx;
+    buf.lock();
+    write(data, len);
+    buf.unlock();
+  }
+
+  // raii lock
+  // TODO
 };
 
 // ============
@@ -183,5 +229,8 @@ class BaseSocketServer {
 #if CONFIG_DEBUG_PERF
 extern PerfData pd_wifiWrite;
 #endif
+
+// todo, make console_sockets thread safe
+extern std::vector<SocketServerResource*> console_sockets;  // for logb
 
 #endif  // AsyncIO_h

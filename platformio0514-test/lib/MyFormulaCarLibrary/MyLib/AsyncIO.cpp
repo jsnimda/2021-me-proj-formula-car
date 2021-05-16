@@ -28,6 +28,8 @@ PerfData pd_wifi_onData_cb("wifi_onData_cb");
 #define perf_end(...)
 #endif
 
+std::vector<SocketServerResource*> console_sockets;  // for logb
+
 // ============
 // Tasks
 // ============
@@ -35,11 +37,11 @@ PerfData pd_wifi_onData_cb("wifi_onData_cb");
 namespace {
 
 // todo dynamic maximum len
-inline size_t read_buffer(with_lock_ptr<CircularBuffer>& buf, uint8_t** p_data, size_t* p_len) {
+inline size_t read_buffer(with_lock_ptr<CircularBuffer>& buf, uint8_t*& data, size_t& len) {
   buf.lock();  // lock mux
-  (*p_len) = min(buf->length(), (size_t)WIFI_MSS);
-  (*p_data) = new uint8_t[(*p_len)];
-  size_t r = buf->read((*p_data), (*p_len));
+  len = min(buf->length(), (size_t)WIFI_MSS);
+  data = new uint8_t[len];
+  size_t r = buf->read(data, len);
   buf.unlock();  // unlock mux
   return r;
 }
@@ -58,7 +60,7 @@ void socketTskTx(void* p) {
         while (buf._ptr->length()) {
           size_t len;
           uint8_t* data;
-          read_buffer(buf, &data, &len);
+          read_buffer(buf, data, len);
 
           perf_start(_a);
           pc->write((const char*)data, len);
@@ -87,7 +89,7 @@ void socketTskRx(void* p) {
         while (buf._ptr->length()) {
           size_t len;
           uint8_t* data;
-          read_buffer(buf, &data, &len);
+          read_buffer(buf, data, len);
 
           perf_start(_a);
           ps->_onData_cb(ps, data, len);
@@ -114,14 +116,14 @@ inline void attachClientEvent(SocketServerResource* ps, AsyncClient* pc) {
   if (!pc) return;
   AsyncClient& c = *pc;
   if (ps->hasRx()) {  // don't attach if rx not exist
-    c.onData([&](void*, AsyncClient*, void* data, size_t len) {
+    c.onData([ps](void*, AsyncClient*, void* data, size_t len) {
       ps->_buf_rx.lock();
       ps->_buf_rx->write((uint8_t*)data, len);
       ps->_buf_rx.unlock();
       ps->notifyRx();
     });
   }
-  c.onDisconnect([&](void*, AsyncClient* pc) {
+  c.onDisconnect([ps](void*, AsyncClient* pc) {
     if (!pc) return;
     if (ps->client == pc) {
       ps->client.lock();
@@ -130,7 +132,7 @@ inline void attachClientEvent(SocketServerResource* ps, AsyncClient* pc) {
       }
       ps->client.unlock();
     }
-    ps->_onDisconnect_cb(ps, pc);
+    if (ps->_onDisconnect_cb) ps->_onDisconnect_cb(ps, pc);
 
     ps->_delete_pc(pc);  // new from AsyncTCP.cpp:1297
   });
@@ -144,7 +146,7 @@ SocketServerResource::SocketServerResource(int port)
   _mss = WIFI_MSS;
   server.setNoDelay(true);
 
-  AcConnectHandler cb = [&](void*, AsyncClient* pc) {
+  AcConnectHandler cb = [this](void*, AsyncClient* pc) {
     if (!pc) return;
     AsyncClient* old_pc = client.locked_set_ptr(pc);
 
@@ -169,7 +171,7 @@ SocketServerResource::SocketServerResource(int port)
       _delete_pc(old_pc);  // new from AsyncTCP.cpp:1297
     }
 
-    _onConnect_cb(this, pc);
+    if (_onConnect_cb) _onConnect_cb(this, pc);
   };
   server.onClient(cb, NULL);
 }
@@ -197,6 +199,18 @@ void asyncIOSetup() {
 void loga(String s) {
   Serial.flush();
   Serial.print(s);
+}
+void logb(String s) {
+  for (int i = 0; i < console_sockets.size(); i++) {
+    auto& buf = console_sockets[i]->_buf_tx;
+    buf.lock();
+    buf->write((const uint8_t*)s.c_str(), s.length());
+    buf.unlock();
+  }
+}
+void logc(String s) {
+  loga(s);
+  logb(s);
 }
 #undef loge
 void loge(String s, const char* file_name, size_t line, const char* function) {

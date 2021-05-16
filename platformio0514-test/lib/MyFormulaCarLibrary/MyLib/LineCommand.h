@@ -7,9 +7,13 @@
 
 #include <functional>
 
-#include "AsyncIO.h"
 #include "CircularBuffer.h"
 #include "Common.h"
+
+class Line;
+
+typedef std::function<void(Line& c)> LineHandler;
+typedef std::function<void(String s)> ResponseCallback;
 
 // ============
 // Line
@@ -90,6 +94,9 @@ class Line {
     set();
     response = s;
   }
+  void ack() {
+    setResponse("ACK: " + _s);
+  }
   void set() {
     handled = true;
   }
@@ -103,99 +110,97 @@ class Line {
   }
 };
 
-typedef std::function<void(Line& c)> LineHandler;
-
 // ============
 // Command Processor
 // ============
 
 class LineProcessor {
  public:
-  CircularBuffer* _buf;  // monitoring buffer
+  with_lock_ptr<CircularBuffer>& buf;  // monitoring buffer
   int scanned = 0;
-  size_t ind;
+  size_t ind = 0;
 
   // CR, LF or CRLF
   uint8_t last = '\0';
 
-  LineProcessor(CircularBuffer* buf) : _buf(buf) {
-    if (_buf) ind = _buf->_start;
+  LineProcessor(with_lock_ptr<CircularBuffer>& b) : buf(b) {}
+  NONCOPYABLE(LineProcessor);
+
+  virtual void onLine(String s) = 0;  // child method
+
+  void checkNewLine() {  // call this to check new line
+    size_t len;
+    uint8_t* data;
+    while (_find_line(data, len)) {
+      onLine((char*)data);
+      delete[] data;
+
+      scanned = 0;
+      ind = buf->_start;
+    }
   }
 
-  void setBuf(CircularBuffer* buf) {
-    _buf = buf;
-    if (_buf) ind = _buf->_start;
+  void reset() {  // this will also clear last
+    scanned = 0;
+    ind = buf->_start;
+    last = '\0';
   }
 
-  virtual void onLine(String s) = 0;
-
-  bool inside() {  // return if ind inside buffer
-    if (!_buf) return false;
-    CircularBuffer& buf = *_buf;
-    if (buf._len == 0) return false;
-    if (buf._len == buf._cap) return true;
-    if (buf._start <= buf._end) return ind >= buf._start && ind < buf._end;
+  bool _inside() {  // return if ind inside buffer
+    if (buf->_len == 0) return false;
+    if (buf->_len == buf->_cap) return true;
+    if (buf->_start <= buf->_end) return ind >= buf->_start && ind < buf->_end;
     // buf._start > buf._end
-    return ind >= buf._start || ind < buf._end;
+    return ind >= buf->_start || ind < buf->_end;
   }
-  void inc() {
-    if (!_buf) return;
+
+  void _inc() {
     scanned++;
     ind++;
-    if (ind >= _buf->_cap) ind = 0;
-  }
-  uint8_t get() {
-    if (!_buf) return 0;
-    return _buf->_buf[ind];
+    if (ind >= buf->_cap) ind = 0;
   }
 
-  void notify() {
-    if (!_buf) return;
-    int len;
-    while ((len = tryGetLine()) > 0) {
-      uint8_t* data = new uint8_t[len + 1];
-      _buf->read(data, len);
-      data[len] = '\0';
-      onLine((char*)data);
-      delete data;
-      scanned = 0;
-      ind = _buf->_start;
-    }
+  void _read(uint8_t*& data, size_t& len) {  // len = scanned
+    data = new uint8_t[scanned + 1];
+    len = buf->read(data, scanned);
+    data[len] = '\0';
   }
 
-  int tryGetLine() {
-    if (!_buf) return -1;
-    while (inside() && scanned < MAX_COMMAND_LENGTH) {
-      uint8_t c = get();
+  bool _find_line(uint8_t*& data, size_t& len) {  // return len > 0
+    data = NULL;
+    len = 0;
+    buf.lock();
+    while (_inside()) {
+      uint8_t c = buf->_buf[ind];
       uint8_t d = last;
       last = c;
-      inc();
-      if (c == '\r') {
-        return scanned;
-      } else if (c == '\n') {
-        if (d != '\r') {
-          return scanned;
-        }  // skip the \n after \r as it is already processed
+      _inc();
+
+      if (scanned >= MAX_COMMAND_LENGTH ||
+          (c == '\r') ||
+          (c == '\n' && d != '\r')) {  // skip the \n after \r as it is already processed
+        _read(data, len);
+        buf.unlock();
+        return true;
       }
     }
-    if (scanned >= MAX_COMMAND_LENGTH) {
-      return scanned;
-    }
-    return -1;
+    buf.unlock();
+    return false;
   }
 };
 
 class CommandProcessor : public LineProcessor {
  public:
   std::vector<LineHandler> routes;
+  ResponseCallback onResponse_cb = NULL;
 
-  CommandProcessor(CircularBuffer* buf) : LineProcessor(buf) {}
+  CommandProcessor(with_lock_ptr<CircularBuffer>& b) : LineProcessor(b) {}
 
   void use(LineHandler r) {
     routes.push_back(r);
   }
 
-  void onLine(String s) {
+  void onLine(String s) override {
     Line c(s);
     for (int i = 0; i < routes.size(); i++) {
       LineHandler r = routes[i];
@@ -203,62 +208,18 @@ class CommandProcessor : public LineProcessor {
       if (c.hasResult()) break;
       c.reset();
     }
-    if (c.response.length()) {
-      onResponse(c.response);
-    } else if (!c.handled) {
-      onResponse("No such command: " + c._s);
-    }
-  }
-
-  virtual void onResponse(String s) {
-    // logc(s);
-  }
-};
-
-class SocketCommandProcessor : public CommandProcessor {
- public:
-  AsyncSocketSerial* const _pSocket;
-  SocketCommandProcessor(AsyncSocketSerial* pSocket)
-      : CommandProcessor(NULL), _pSocket(pSocket) {}
-
-  void attach() {
-    _pSocket->_dump_rx = false;
-    _pSocket->onData([&](uint8_t* data, size_t len) {
-      if (_buf != _pSocket->_p_rx_buf) {
-        setBuf(_pSocket->_p_rx_buf);
+    if (onResponse_cb) {
+      if (c.response.length()) {
+        onResponse_cb(c.response);
+      } else if (!c.handled) {
+        onResponse_cb("No such command: " + c._s);
       }
-      _pSocket->lockRx();
-      notify();
-      _pSocket->unlockRx();
-    });
+    }
   }
 
-  void onResponse(String s) {
-    logc(s + "\r\n");
-  }
-
-  void logc(String s) {
-    loga(s);
-    _pSocket->lockedPrint(s);
+  void onResponse(ResponseCallback cb) {
+    onResponse_cb = cb;
   }
 };
-
-// ============
-// command set
-// ============
-
-inline void basic_route(Line& c) {
-  if (c.on("syn")) {
-    int ind = c.ind;
-    if (c.on("int") && c.onInt()) {
-      c.setResponse(stringf("ACK int: %ld", c.rint));
-    }
-    c.sub(ind);
-    if (c.on("double") && c.onDouble()) {
-      c.setResponse(stringf("ACK double: %f", c.rdouble));
-    }
-    c.sub(ind);
-  }
-}
 
 #endif  // LineCommand_h
