@@ -94,12 +94,14 @@ class with_lock : public lock_base {
   T& operator*() {
     if (_mux.count == 0) {
       loge(stringf("forget to lock? in %s", __PRETTY_FUNCTION__));
+      print_backtrace();
     }
     return _data;
   }
   T* operator->() {
     if (_mux.count == 0) {
       loge(stringf("forget to lock? in %s", __PRETTY_FUNCTION__));
+      print_backtrace();
     }
     return &_data;
   }
@@ -115,13 +117,14 @@ class with_lock_ptr : public lock_base {
   T& operator*() {
     if (_mux.count == 0) {
       loge(stringf("forget to lock? in %s", __PRETTY_FUNCTION__));
+      print_backtrace();
     }
     return *_ptr;
   }
   T* operator->() {
     if (_mux.count == 0) {
       loge(stringf("forget to lock? in %s", __PRETTY_FUNCTION__));
-      abort();
+      print_backtrace();
     }
     return _ptr;
   }

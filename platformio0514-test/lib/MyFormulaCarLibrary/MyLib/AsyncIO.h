@@ -171,7 +171,7 @@ class SocketServerResource : public BaseAsyncResource {
 // ============
 
 // template <typename T>  // T : SocketServerResource
-class BaseSocketServer : Print {
+class BaseSocketServer : public Print {
  public:
   using DataHandler = BaseAsyncResource::DataHandler;
   using ConnectHandler = SocketServerResource::ConnectHandler;

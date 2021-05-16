@@ -29,6 +29,6 @@ void setup() {
 }
 
 void loop() {
-  delay(3000);
   delay(10 * 1000);
+  server.println("test no locking");
 }
