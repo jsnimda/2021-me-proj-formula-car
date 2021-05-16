@@ -167,6 +167,7 @@ SocketServerResource::SocketServerResource(int port)
     if (old_pc) {
       if (old_pc->connected()) {
         old_pc->write("\r\nDevice is connected on another client.\r\n");
+        old_pc->close();
       }
       _delete_pc(old_pc);  // new from AsyncTCP.cpp:1297
     }

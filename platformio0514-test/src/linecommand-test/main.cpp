@@ -14,6 +14,15 @@ void setup() {
     if (c.on("haha")) {
       c.setResponse("goodbye!");
     }
+    if (c.on("h2")) {
+      print_backtrace();
+    }
+    if (c.on("h3")) {
+      print_backtrace();
+      Serial.flush();
+      delay(500);
+      abort();
+    }
   });
 
   server.begin();
@@ -22,8 +31,4 @@ void setup() {
 void loop() {
   delay(3000);
   delay(10 * 1000);
-  print_backtrace();
-  Serial.flush();
-  delay(500);
-  abort();
 }

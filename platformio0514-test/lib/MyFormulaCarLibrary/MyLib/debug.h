@@ -3,6 +3,6 @@
 
 // ref: https://github.com/pycom/pycom-esp-idf/blob/idf_v3.2/components/esp32/panic.c
 // see line 162
-void print_backtrace() __attribute__((noinline));
+void print_backtrace();
 
 #endif  // debug_h
