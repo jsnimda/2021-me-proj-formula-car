@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+   <meta charset='utf-8'>
+   <title>Page Title</title>
+   <meta name='viewport' content='width=device-width, initial-scale=1'>
+
+   <!-- #region libraries -->
+   <!-- https://fomantic-ui.com/introduction/getting-started.html -->
+   <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
+   <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.7/dist/semantic.min.css">
+   <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.7/dist/semantic.min.js"></script>
+
+   <script src="https://unpkg.com/vue@next"></script>
+   <!-- #endregion -->
+
+   <script src='/eel.js'></script>
+   <!-- <link rel='stylesheet' type='text/css' media='screen' href='main.css'>
+   <script src='main.js'></script> -->
+
+   <style>
+      #app {
+         /* padding: 12px; */
+         height: 100%;
+      }
+
+      .status {
+         font-weight: normal;
+      }
+
+      #command_text-container,
+      #command_text {
+         font-family: monospace;
+      }
+
+      #console_out {
+         height: 652px;
+         overflow-x: auto;
+         overflow-y: scroll;
+      }
+
+      #console_out pre {
+         margin: 0;
+      }
+
+      #console_out code {
+         white-space: pre;
+      }
+   </style>
+</head>
+
+<body>
+   <div id="app" class="ui basic segment">
+      <div class="ui grid">
+         <div class="four wide column">
+            <!-- top -->
+            <h3>
+               <i class="circular teal microchip icon"></i>
+               <span>esp32-js.local</span>
+               <span style="margin-left: 12px;"></span>
+               <span class="ui red text status">
+                  <i class="ui red empty circular label"></i>
+                  Offline
+               </span>
+            </h3>
+         </div>
+         <div class="four wide column">Test</div>
+         <div class="four wide column"></div>
+         <div class="four wide column"></div>
+      </div> <!-- end grid -->
+      <div class="ui divider"></div>
+      <div class="ui grid" style="height: 788px">
+         <div class="row">
+            <div class="eight wide column">
+               <!-- left bottom -->
+               <div id="console_out" class="ui segment">
+                  <code>123</code><br>
+                  <code>  123</code><br>
+                  <code>123  </code><br>
+                  <code>123</code><br>
+                  <code>123aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasdasdasdad</code><br>
+               </div>
+               <div id="command_text-container" class="ui fluid labeled input">
+                  <label for="command_text" class="ui label">&gt;</label>
+                  <input type="text" id="command_text" autofocus>
+               </div>
+            </div>
+            <div class="eight wide column">
+               <!-- right bottom -->
+            </div>
+         </div>
+      </div> <!-- end grid -->
+   </div>
+   <script>
+      eel.expose(js_random);
+      function js_random() {
+         return Math.random();
+      }
+
+      addEventListener('mouseup', function(e) {
+         setTimeout(() => {
+            let act = document.activeElement;
+            if ((act == null || act == document.body)
+               && window.getSelection().type != 'Range') {
+               command_text.focus();
+            }
+         }, 1);
+      });
+
+      (function() {
+         let hist = [];
+         let ind = 0;
+
+         eel.expose(set_hist);
+         function set_hist(h) {
+            console.log(h);
+         }
+
+         function add_hist(s) {
+            if (s != hist[hist.length - 1]) {
+               hist.push(s);
+            }
+            ind = hist.length;
+         }
+
+         function view_hist(increment) {
+            ind += increment;
+            if (ind < 0) ind = 0;
+            if (ind > hist.length) ind = hist.length;
+            command_text.value = hist[ind] || '';
+            // let len = command_text.value.length;
+            // command_text.setSelectionRange(len, len);
+         }
+
+         command_text.onkeydown = function(e) {
+            let f = ({
+               'Enter': () => {
+                  let s = command_text.value;
+                  command_text.value = '';
+                  add_hist(s);
+                  eel.send_text(s);
+               },
+               'Escape': () => {
+                  command_text.value = '';
+               },
+               'ArrowUp': () => {
+                  view_hist(-1);
+                  e.preventDefault();
+               },
+               'ArrowDown': () => {
+                  view_hist(1);
+                  e.preventDefault();
+               },
+            })[e.key];
+            if (f) f();
+         }
+      })();
+   </script>
+</body>
+
+</html>
