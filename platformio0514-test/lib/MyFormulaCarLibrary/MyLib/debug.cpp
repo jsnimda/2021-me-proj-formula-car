@@ -2,6 +2,7 @@
 
 #include "Common.h"
 #include "esp_panic.h"
+#include "esp_task_wdt.h"
 
 // ============
 // print backtrace
@@ -98,3 +99,122 @@ void print_backtrace() {
 
   loga(s);
 }
+
+// ============
+// task info
+// ============
+
+std::vector<debug_task_info> dump_task_info() {
+  TaskHandle_t current_task = xTaskGetCurrentTaskHandle();
+  UBaseType_t n = uxTaskGetNumberOfTasks();
+  TaskSnapshot_t* snapshots = new TaskSnapshot_t[n * 2];
+  UBaseType_t tcb_sz;
+  n = uxTaskGetSnapshotAll(snapshots, n * 2, &tcb_sz);
+
+  std::vector<debug_task_info> res;
+  for (int i = 0; i < n; i++) {
+    TaskHandle_t tskHandle = snapshots[i].pxTCB;
+    debug_task_info info{
+        .tsk = tskHandle,
+        .name = pcTaskGetTaskName(tskHandle),
+        .priority = uxTaskPriorityGet(tskHandle),
+        .state = eTaskGetState(tskHandle),
+        .core_id = xTaskGetAffinity(tskHandle),
+        .endOfStack = (uint32_t)(snapshots[i].pxEndOfStack),
+        .topOfStack = (uint32_t)(snapshots[i].pxTopOfStack),
+        .highWaterMark = (uint32_t)uxTaskGetStackHighWaterMark(tskHandle),
+        .stackStart = (uint32_t)pxTaskGetStackStart(tskHandle),
+        .wdt_status = esp_task_wdt_status(tskHandle),
+        .isCurrentTask = tskHandle == current_task,
+    };
+    res.push_back(info);
+  }
+  return res;
+}
+
+/*
+
+*********************************************************************
+Task            Prio  State    Core    StackEnd    StackTop  wdt
+                                       HighMark  StackStart
+*********************************************************************
+1234567890123456  99  Suspended   1  0x7fffffff  0x7fffffff   0   (*)
+                                     0x7fffffff  0x7fffffff
+*********************************************************************
+
+*********************************************************************
+Task            Prio  State  Core  STKSZ    TOP   HIGH    %  wdt
+*********************************************************************
+1234567890123456  99  Suspe     1  16384  16384  16384   99   0   (*)
+*********************************************************************
+
+*/
+
+static const char* eStateText[] = {
+    "Running",
+    "Ready",
+    "Blocked",
+    "Suspended",
+    "Deleted",
+};
+
+String taskInfoRawAll() {
+  std::vector<debug_task_info> r = dump_task_info();
+  String hr =
+      "*********************************************************************";
+  String br = "\r\n";
+  String title =
+      "Task            Prio  State    Core    StackEnd    StackTop  wdt\r\n"
+      "                                       HighMark  StackStart";
+  String s = hr + br + title + br + hr + br;
+  for (int i = 0; i < r.size(); i++) {
+    debug_task_info info = r[i];
+    char c = (info.wdt_status == ESP_OK) ? '1' : (info.wdt_status == ESP_ERR_NOT_FOUND ? '0' : '?');
+    s += stringf("%-16s  %2d  %-9s  %2d  0x%08x  0x%08x   %c   %s\r\n",
+                 info.name,
+                 info.priority,
+                 eStateText[info.state],
+                 info.core_id,
+                 info.endOfStack,
+                 info.topOfStack,
+                 c,
+                 info.isCurrentTask ? "(*)" : "");
+    s += stringf("                                     0x%08x  0x%08x\r\n",
+                 info.highWaterMark,
+                 info.stackStart);
+  }
+  s += hr;
+  return s;
+}
+
+String taskInfoAll() {
+  std::vector<debug_task_info> r = dump_task_info();
+  String hr =
+      "*********************************************************************";
+  String br = "\r\n";
+  String title =
+      "Task            Prio  State  Core  STKSZ    TOP   HIGH    %  wdt";
+  String s = hr + br + title + br + hr + br;
+  for (int i = 0; i < r.size(); i++) {
+    debug_task_info info = r[i];
+    char c = (info.wdt_status == ESP_OK) ? '1' : (info.wdt_status == ESP_ERR_NOT_FOUND ? '0' : '?');
+    size_t stksz = info.endOfStack - info.stackStart;
+    size_t top = info.endOfStack - info.topOfStack;
+    size_t high = stksz - info.highWaterMark;
+    size_t pct = high * 100 / stksz;
+    s += stringf("%-16s  %2d  %-5.5s  %4d %6d %6d %6d  %3d   %c   %s\r\n",
+                 info.name,
+                 info.priority,
+                 eStateText[info.state],
+                 info.core_id,
+                 stksz,
+                 top,
+                 high,
+                 pct,
+                 c,
+                 info.isCurrentTask ? "(*)" : "");
+  }
+  s += hr;
+  return s;
+}
+

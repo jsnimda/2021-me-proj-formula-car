@@ -100,14 +100,14 @@ class Line {
   void set() {
     handled = true;
   }
-  bool setOn(const String& s) {
-    if (on(s)) {
-      set();
-      return true;
-    } else {
-      return false;
-    }
-  }
+  // bool setOn(const String& s) {
+  //   if (on(s)) {
+  //     set();
+  //     return true;
+  //   } else {
+  //     return false;
+  //   }
+  // }
 };
 
 // ============

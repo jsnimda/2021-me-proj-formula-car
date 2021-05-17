@@ -8,6 +8,15 @@
 // ============
 
 inline void core_r(Line& c) {
+  if (c.on("tasks")) {
+    c.set();
+    if (c.on("raw")) {
+      c.setResponse(taskInfoRawAll());
+    } else {
+      c.setResponse(taskInfoAll());
+    }
+  }
+
   if (c.on("syn")) {
     int ind = c.ind;
     if (c.on("int") && c.onInt()) {
