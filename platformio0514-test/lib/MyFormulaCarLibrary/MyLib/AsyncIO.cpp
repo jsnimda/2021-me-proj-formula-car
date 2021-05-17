@@ -40,7 +40,7 @@ namespace {
 inline size_t read_buffer(with_lock_ptr<CircularBuffer>& buf, uint8_t*& data, size_t& len) {
   buf.lock();  // lock mux
   len = min(buf->length(), (size_t)WIFI_MSS);
-  data = new uint8_t[len];
+  data = new uint8_t[len];  // has delete on line 68 and 97
   size_t r = buf->read(data, len);
   buf.unlock();  // unlock mux
   return r;

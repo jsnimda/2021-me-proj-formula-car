@@ -51,10 +51,12 @@ class BaseAsyncResource : public BaseResource {
   with_lock_ptr<CircularBuffer> _buf_rx;  // should coexist with _tskRx
 
   void _write_init() {
-    _buf_tx = new CircularBuffer(_mss * BUF_SIZE_FACTOR);
+    if (!_buf_tx) _buf_tx = new CircularBuffer(_mss * BUF_SIZE_FACTOR);
+    // ^^ has delete on line 108
   }
   void _read_init() {  // typically called when _onData_cb is set
-    _buf_rx = new CircularBuffer(_mss * BUF_SIZE_FACTOR);
+    if (!_buf_rx) _buf_rx = new CircularBuffer(_mss * BUF_SIZE_FACTOR);
+    // ^^ has delete on line 109
   }
   void _create_tsk_tx(TaskFunction_t func, uint32_t stack, UBaseType_t priority) {
     inc_del_counter();

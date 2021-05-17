@@ -51,6 +51,7 @@ void print_backtrace() {
   uint32_t _sp = sp;
 
   uint32_t* entry_pairs = new uint32_t[100 * 2];  // pc:sp
+  // ^^ has delete on line 103
   size_t ind = 0;
   for (int i = 0; i < 0x100; i++) {
     pc = *((uint32_t*)(sp - 0x10));
@@ -98,6 +99,8 @@ void print_backtrace() {
   s += "\r\n";
 
   loga(s);
+
+  delete[] entry_pairs;
 }
 
 // ============
@@ -108,6 +111,7 @@ std::vector<debug_task_info> dump_task_info() {
   TaskHandle_t current_task = xTaskGetCurrentTaskHandle();
   UBaseType_t n = uxTaskGetNumberOfTasks();
   TaskSnapshot_t* snapshots = new TaskSnapshot_t[n * 2];
+  // ^^ has delete on line 137
   UBaseType_t tcb_sz;
   n = uxTaskGetSnapshotAll(snapshots, n * 2, &tcb_sz);
 
@@ -129,6 +133,9 @@ std::vector<debug_task_info> dump_task_info() {
     };
     res.push_back(info);
   }
+
+  delete[] snapshots;
+
   return res;
 }
 
@@ -217,4 +224,3 @@ String taskInfoAll() {
   s += hr;
   return s;
 }
-

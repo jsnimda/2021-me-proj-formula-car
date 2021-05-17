@@ -158,7 +158,7 @@ class LineProcessor {
   }
 
   void _read(uint8_t*& data, size_t& len) {  // len = scanned
-    data = new uint8_t[scanned + 1];
+    data = new uint8_t[scanned + 1];  // has delete on line 136
     len = buf->read(data, scanned);
     data[len] = '\0';
     scanned = 0;
