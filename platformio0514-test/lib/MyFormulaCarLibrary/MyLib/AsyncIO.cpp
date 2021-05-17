@@ -155,7 +155,7 @@ SocketServerResource::SocketServerResource(int port)
     AsyncClient& c = *pc;
     String s =
         stringf("New client: %s\r\n", c.remoteIP().toString().c_str()) +
-        stringf("  %s:%d -> %s:%d\r\n",
+        stringf("  %s:%d -> %s:%d",
                 c.remoteIP().toString().c_str(),
                 c.remotePort(),
                 c.localIP().toString().c_str(),
@@ -186,6 +186,9 @@ void SocketServerResource::begin() {
     _read_init();
     _create_tsk_rx(socketTskRx, TSK_SOCKET_RX_STACK, TSK_SOCKET_RX_PRIORITY);
   }
+  if (is_console) {
+    console_sockets.push_back(this);
+  }
   server.begin();
 }
 
@@ -198,10 +201,12 @@ void asyncIOSetup() {
 }
 
 void loga(String s) {
+  s += "\r\n";
   Serial.flush();
   Serial.print(s);
 }
 void logb(String s) {
+  s += "\r\n";
   for (int i = 0; i < console_sockets.size(); i++) {
     auto& buf = console_sockets[i]->_buf_tx;
     buf.lock();
@@ -215,7 +220,7 @@ void logc(String s) {
 }
 #undef loge
 void loge(String s, const char* file_name, size_t line, const char* function) {
-  s = stringf(ARDUHAL_LOG_COLOR_E "[E][%s:%u] %s(): %s" ARDUHAL_LOG_RESET_COLOR "\r\n",
+  s = stringf(ARDUHAL_LOG_COLOR_E "[E][%s:%u] %s(): %s" ARDUHAL_LOG_RESET_COLOR,
               file_name, line, function, s.c_str());
   loga(s);
 }

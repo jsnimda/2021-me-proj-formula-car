@@ -30,7 +30,6 @@
 
 // add this in setup():
 void asyncIOSetup();
-void loga(String s);  // call AsyncSerial.printWithLock(s) if async
 
 // std::function can handle captured lambda no problem
 
@@ -122,6 +121,7 @@ class SocketServerResource : public BaseAsyncResource {
   bool use_tx = false;
   bool use_rx = false;
   bool rx_notify_only = false;  // do not copy uint8_t* to on data cb
+  bool is_console = false;      // true if do logb to here
 
   SocketServerResource(int port);
 

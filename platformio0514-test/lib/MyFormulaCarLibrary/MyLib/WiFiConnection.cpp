@@ -22,10 +22,6 @@ static WiFiMulti wifiMulti;
 
 namespace {
 
-void log(String s) {
-  loga(s + "\r\n");
-}
-
 bool firstConnect = true;
 // EventGroupHandle_t wifiConnectionEventGroup;
 TaskHandle_t wifiConnectionTaskHandle = NULL;
@@ -34,9 +30,9 @@ portMUX_TYPE wifiConnectionTaskMux = portMUX_INITIALIZER_UNLOCKED;
 void wifiConnectionTask(void* args) {
   if (firstConnect) {
     firstConnect = false;
-    log("Connecting Wifi...");
+    loga("Connecting Wifi...");
   } else {
-    log("WiFi disconnected. Trying to reconnect...");
+    loga("WiFi disconnected. Trying to reconnect...");
   }
   bool flag = true;
   while (flag) {
@@ -50,7 +46,7 @@ void wifiConnectionTask(void* args) {
       wifiConnectionTaskHandle = NULL;
       flag = false;
     } else {
-      log("WiFi connection failed. Trying to reconnect...");
+      loga("WiFi connection failed. Trying to reconnect...");
     }
     portEXIT_CRITICAL(&wifiConnectionTaskMux);
   }
@@ -58,7 +54,7 @@ void wifiConnectionTask(void* args) {
   String s;
   s = s + "\r\n" +
       "WiFi connected\r\n" +
-      stringf("IP address: %s\r\n", WiFi.localIP().toString().c_str());
+      stringf("IP address: %s", WiFi.localIP().toString().c_str());
   loga(s);
   vTaskDelete(NULL);
 }

@@ -14,12 +14,14 @@ class CommandServer : public BaseSocketServer {
     resource->use_tx = true;
     resource->use_rx = true;
     resource->rx_notify_only = true;
+    resource->is_console = true;
     onData([this](BaseAsyncResource*, uint8_t* data, size_t len) {
       assert(len == 0);  // should in notify only mode
       cmd.checkNewLine();
     });
-    cmd.onResponse([](String s) {
-      logc(s + "\r\n");
+    cmd.onResponse([this](String s) {
+      // logc(s);
+      lockedPrint(s + "\r\n\r\n");
     });
   }
   NONCOPYABLE(CommandServer);
