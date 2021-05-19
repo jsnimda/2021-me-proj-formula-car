@@ -51,6 +51,11 @@
       #console_out code {
          white-space: pre;
       }
+
+      #console_out span {
+         display: block;
+         line-height: 1.4285em;
+      }
    </style>
 </head>
 
@@ -84,10 +89,10 @@
                <!-- in 1600x900 8:8 width = 766 -->
                <!-- in 1440x900 9:7 width = 775 -->
                <h4 class="ui top attached header">Console</h4>
-               <div id="console_out" class="ui bottom attached segment">
-                  <div v-for="item in client.out" class="ui text" :class="[colorByType(item.type)]" :key="item.ind">
+               <div id="console_out" class="ui bottom attached segment" v-pre>
+                  <!-- <span v-for="item in client.out" class="ui text" :class="[colorByType(item.type)]" :key="item.ind">
                      <code>{{item.time}} {{item.type}} {{item.line}}</code>
-                  </div>
+                  </span> -->
                </div>
                <div id="command_input-container" class="ui fluid labeled input">
                   <label for="command_input" class="ui label">&gt;</label>
@@ -101,6 +106,8 @@
       </div> <!-- end grid -->
    </div>
    <script>
+      let console_out;
+      let command_input;
 
       addEventListener('mouseup', function(e) {
          setTimeout(() => {
@@ -129,6 +136,27 @@
             app.client.out.push(out_item);
          } else {
             app.$set(app.client.out, app.client.out.length - last_n, out_item);
+         }
+         update_console_dom(last_n)
+      }
+
+      function update_console_dom(last_n) {
+         let ind = app.client.out.length - last_n;
+         // let children = console_out.children;
+         while (console_out.childElementCount < app.client.out.length) {
+            let item = app.client.out[console_out.childElementCount];
+            let span = document.createElement('span');
+            span.classList.add('ui');
+            span.classList.add(app.colorByType(item.type));
+            span.classList.add('text');
+            let code = document.createElement('code');
+            code.textContent = `${item.time} ${item.type} ${item.line}`;
+            span.appendChild(code)
+            console_out.appendChild(span);
+         }
+         if (last_n != 0) {
+            // change text at ind
+            console_out.children[ind].firstElementChild.textContent = app.client.out[ind].line;
          }
       }
 
@@ -174,11 +202,16 @@
                }, { deep: true })
             }
          });
+
+         console_out = document.getElementById('console_out');
+         command_input = document.getElementById('command_input');
+         
          command_input_init()
          console_out.onscroll = function(e) {
             let end = this.scrollHeight - this.scrollTop === this.clientHeight;
             app.auto_scroll = end;
          };
+         update_console_dom(0);
          scroll_to_bottom();
       })();
 
