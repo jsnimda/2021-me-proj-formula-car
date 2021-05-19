@@ -5,6 +5,32 @@
 
 CommandServer server(23);
 
+void outTestTask(void* args) {
+  server.lockedPrint("hello\r\n");
+  delay(1000);
+  server.lockedPrint("hello\r\n");
+  delay(1000);
+  server.lockedPrint("hello\r\n");
+  delay(1000);
+  server.lockedPrint("a");
+  delay(1000);
+  server.lockedPrint("b");
+  delay(1000);
+  server.lockedPrint("c");
+  delay(1000);
+  server.lockedPrint("\r\n");
+  delay(1000);
+  server.lockedPrint("\r\n");
+  delay(1000);
+  server.lockedPrint("x");
+  delay(1000);
+  server.lockedPrint("y");
+  delay(1000);
+  server.lockedPrint("z");
+  delay(1000);
+  vTaskDelete(NULL);
+}
+
 void setup() {
   Serial.begin(115200);
   airConnSetup();
@@ -22,6 +48,17 @@ void setup() {
       Serial.flush();
       delay(500);
       abort();
+    }
+    if (c.on("out")) {
+      c.ack();
+      xTaskCreatePinnedToCore(
+        outTestTask, 
+        "outTestTask",
+        4096,
+        NULL,
+        4,
+        NULL,
+        0);
     }
   });
 

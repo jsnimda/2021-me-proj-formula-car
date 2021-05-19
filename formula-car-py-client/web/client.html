@@ -140,6 +140,10 @@
          update_console_dom(last_n)
       }
 
+      function toTextContent(item) {
+         return `${item.time} ${item.type} ${item.line}`;
+      }
+
       function update_console_dom(last_n) {
          let ind = client_out.length - last_n;
          // let children = console_out.children;
@@ -151,14 +155,14 @@
             span.classList.add(colorByType(item.type));
             span.classList.add('text');
             let code = document.createElement('code');
-            code.textContent = `${item.time} ${item.type} ${item.line}`;
+            code.textContent = toTextContent(item);
             span.appendChild(code)
             fragment.appendChild(span);
          }
          console_out.appendChild(fragment);
          if (last_n != 0) {
             // change text at ind
-            console_out.children[ind].firstElementChild.textContent = client_out[ind].line;
+            console_out.children[ind].firstElementChild.textContent = toTextContent(client_out[ind]);
          }
          if (app.auto_scroll) {
             scroll_to_bottom();
