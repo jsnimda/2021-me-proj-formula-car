@@ -60,7 +60,7 @@
 </head>
 
 <body>
-   <div id="app" class="ui basic segment" v-cloak>
+   <div id="app" class="ui basic segment">
       <div class="ui grid">
          <div class="five wide column">
             <!-- top -->
@@ -68,12 +68,12 @@
                <i class="circular teal microchip icon"></i>
                <span>esp32-js.local</span>
                <span style="margin-left: 12px;"></span>
-               <span class="ui text status" :class="[status_color]">
+               <span class="ui text status" :class="[status_color]" v-cloak>
                   <i class="ui empty circular label" :class="[status_color]"></i>
                   {{status}}
                </span>
                <span style="margin-left: 12px;"></span>
-               <span class="ui text status" :class="[status_color]" v-if="status_color != 'red'">
+               <span class="ui text status" :class="[status_color]" v-if="status_color != 'red'" v-cloak>
                   {{client.connection.ping}} ms
                </span>
             </h3>
@@ -237,7 +237,7 @@
          }
 
          function add_hist(s) {
-            if (s != hist[hist.length - 1]) {
+            if (s.length > 0 && s != hist[hist.length - 1]) {
                hist.push(s);
             }
             ind = hist.length;

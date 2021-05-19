@@ -136,7 +136,7 @@ def get_client():
 
 @eel.expose
 def send_line(s):
-    if len(client['in']) == 0 or client['in'][-1] != s:
+    if len(s) > 0 and (len(client['in']) == 0 or client['in'][-1] != s):
         client['in'].append(s)
     loop.call_soon_threadsafe(partial(on_input_line, s))
 
