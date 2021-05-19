@@ -85,13 +85,11 @@
                <!-- in 1440x900 9:7 width = 775 -->
                <h4 class="ui top attached header">Console</h4>
                <div id="console_out" class="ui bottom attached segment">
-                  <template v-for="item in client.out">
-                     <span class="ui text" :class="[colorByType(item.type)]"
-                        :key="item.ind"><code>{{item.time}} {{item.type}} {{item.line}}</code></span>
-                     <br :key="item.ind + '-br'">
-                  </template>
+                  <div v-for="item in client.out" class="ui text" :class="[colorByType(item.type)]" :key="item.ind">
+                     <code>{{item.time}} {{item.type}} {{item.line}}</code>
+                  </div>
                </div>
-               <div id="command_input-container" class="ui fluid labeled input" v-pre>
+               <div id="command_input-container" class="ui fluid labeled input">
                   <label for="command_input" class="ui label">&gt;</label>
                   <input type="text" id="command_input" autofocus>
                </div>
