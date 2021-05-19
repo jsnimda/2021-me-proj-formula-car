@@ -133,39 +133,58 @@
       eel.expose(append);
       function append(out_item, last_n) {
          if (last_n == 0) {
-            app.client.out.push(out_item);
+            client_out.push(out_item);
          } else {
-            app.$set(app.client.out, app.client.out.length - last_n, out_item);
+            client_out[client_out.length - last_n] = out_item;
          }
          update_console_dom(last_n)
       }
 
       function update_console_dom(last_n) {
-         let ind = app.client.out.length - last_n;
+         let ind = client_out.length - last_n;
          // let children = console_out.children;
-         while (console_out.childElementCount < app.client.out.length) {
-            let item = app.client.out[console_out.childElementCount];
+         let fragment = document.createDocumentFragment();
+         for (let i = console_out.childElementCount; i < client_out.length; i++) {
+            let item = client_out[i];
             let span = document.createElement('span');
             span.classList.add('ui');
-            span.classList.add(app.colorByType(item.type));
+            span.classList.add(colorByType(item.type));
             span.classList.add('text');
             let code = document.createElement('code');
             code.textContent = `${item.time} ${item.type} ${item.line}`;
             span.appendChild(code)
-            console_out.appendChild(span);
+            fragment.appendChild(span);
          }
+         console_out.appendChild(fragment);
          if (last_n != 0) {
             // change text at ind
-            console_out.children[ind].firstElementChild.textContent = app.client.out[ind].line;
+            console_out.children[ind].firstElementChild.textContent = client_out[ind].line;
+         }
+         if (app.auto_scroll) {
+            scroll_to_bottom();
          }
       }
 
       console.log('eel expose setup finished');
       let app;
+      let client_out = [];
+      let client_in = [];
+
+      function colorByType(type) {
+         return ({
+            '>': 'black',
+            '$': 'blue',
+            '#': 'teal',
+         })[type] || '';
+      }
 
       (async function() {
          result_client = await eel.get_client()();
          console.log('client', result_client);
+         client_out = result_client.out;
+         client_in = result_client.in;
+         delete result_client.out;
+         delete result_client.in;
          app = new Vue({
             el: '#app',
             data: {
@@ -187,42 +206,29 @@
                }
             },
             methods: {
-               colorByType(type) {
-                  return ({
-                     '>': 'black',
-                     '$': 'blue',
-                     '#': 'teal',
-                  })[type] || '';
-               },
             },
             mounted: function() {
-               this.$watch('client.out', function() {
-                  // auto scroll or not
-                  if (this.auto_scroll) scroll_to_bottom();
-               }, { deep: true })
+               setTimeout(() => update_console_dom(0), 1);
             }
          });
 
          console_out = document.getElementById('console_out');
          command_input = document.getElementById('command_input');
-         
+
          command_input_init()
          console_out.onscroll = function(e) {
             let end = this.scrollHeight - this.scrollTop === this.clientHeight;
             app.auto_scroll = end;
          };
          update_console_dom(0);
-         scroll_to_bottom();
       })();
 
       function scroll_to_bottom() {
-         app.$nextTick(() => {
-            console_out.scrollTop = console_out.scrollHeight;
-         });
+         console_out.scrollTop = console_out.scrollHeight;
       }
 
       function command_input_init() {
-         let hist = app.client.in;
+         let hist = client_in;
          let ind = hist.length;
 
          eel.expose(set_hist);
