@@ -9,7 +9,7 @@ import subprocess
 import re
 
 
-def ping_command(hostname):
+def ping_command(hostname, print_if_fail=False):
     """
     return (result, ping), where result is bool, ping is int string in ms or '<1'
     """
@@ -22,11 +22,15 @@ def ping_command(hostname):
     stdout, stderr = proc.communicate()
 
     if proc.returncode != 0:
+        if print_if_fail:
+            print(stdout.decode('utf-8'))
         return (False, '?')
 
     response = stdout.decode('utf-8')
     res = re.search(r'(<?\d+)\D*?ms', response, re.MULTILINE)
     if res is None:
+        if print_if_fail:
+            print(stdout.decode('utf-8'))
         return (True, '?')
     ping = res.group(1)
     return (True, ping)

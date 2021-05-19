@@ -8,6 +8,7 @@ from datetime import datetime
 import threading
 import asyncio
 import serial
+import socket
 from functools import partial
 
 from ping_command import ping_command
@@ -193,12 +194,20 @@ def my_other_thread():
 
         await asyncio.wait([tskPing])
 
+    async def get_local_ip():
+        try:
+            return await loop.run_in_executor(
+                None, partial(socket.gethostbyname, hostname))
+        except:
+            return None
+
     async def ping_task():
         nonlocal tskSocket
         first_ping = True
+        target = hostname
         while True:
             target_up, ping = await loop.run_in_executor(
-                None, partial(ping_command, hostname))
+                None, partial(ping_command, target, print_if_fail=True))
             old_status = client['connection']['status']
             client['connection']['ping'] = ping
             if old_status == 'offline' and target_up:
@@ -213,9 +222,17 @@ def my_other_thread():
                 client['connection']['status'] = 'offline'
                 py_msg(f'Device {hostname} is down')
             elif first_ping:
-                py_msg('{hostname} not found')
+                py_msg(f'{hostname} not found')
             first_ping = False
             notify_connection()
+            if target_up:
+                if target == hostname:
+                    ip = await get_local_ip()
+                    py_msg(f'local ip: {ip}')
+                    if ip is not None:
+                        target = ip
+            else:
+                target = hostname
             await asyncio.sleep(1.0)
 
     async def socket_task():
