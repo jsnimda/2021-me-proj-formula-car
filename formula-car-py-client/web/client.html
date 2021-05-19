@@ -12,7 +12,7 @@
    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.7/dist/semantic.min.css">
    <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.7/dist/semantic.min.js"></script>
 
-   <script src="https://unpkg.com/vue@next"></script>
+   <script src="https://unpkg.com/vue@2"></script>
    <!-- #endregion -->
 
    <script src='/eel.js'></script>
@@ -25,12 +25,16 @@
          height: 100%;
       }
 
+      [v-cloak] {
+         display: none;
+      }
+
       .status {
          font-weight: normal;
       }
 
-      #command_text-container,
-      #command_text {
+      #command_input-container,
+      #command_input {
          font-family: monospace;
       }
 
@@ -51,39 +55,43 @@
 </head>
 
 <body>
-   <div id="app" class="ui basic segment">
+   <div id="app" class="ui basic segment" v-cloak>
       <div class="ui grid">
-         <div class="four wide column">
+         <div class="five wide column">
             <!-- top -->
             <h3>
                <i class="circular teal microchip icon"></i>
                <span>esp32-js.local</span>
                <span style="margin-left: 12px;"></span>
-               <span class="ui red text status">
-                  <i class="ui red empty circular label"></i>
-                  Offline
+               <span class="ui text status" :class="[status_color]">
+                  <i class="ui empty circular label" :class="[status_color]"></i>
+                  {{status}}
+               </span>
+               <span style="margin-left: 12px;"></span>
+               <span class="ui text status" :class="[status_color]" v-if="status_color != 'red'">
+                  {{client.connection.ping}} ms
                </span>
             </h3>
          </div>
-         <div class="four wide column">Test</div>
-         <div class="four wide column"></div>
-         <div class="four wide column"></div>
+         <div class="six wide column"></div>
+         <div class="five wide column"></div>
       </div> <!-- end grid -->
       <div class="ui divider"></div>
       <div class="ui grid" style="height: 788px">
          <div class="row">
             <div class="eight wide column">
                <!-- left bottom -->
-               <div id="console_out" class="ui segment">
-                  <code>123</code><br>
-                  <code>  123</code><br>
-                  <code>123  </code><br>
-                  <code>123</code><br>
-                  <code>123aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasdasdasdad</code><br>
+               <h4 class="ui top attached header">Console</h4>
+               <div id="console_out" class="ui bottom attached segment">
+                  <template v-for="item in client.out">
+                     <span class="ui text" :class="[colorByType(item.type)]"
+                        :key="item.ind"><code>{{item.time}} {{item.type}} {{item.line}}</code></span>
+                     <br :key="item.ind + '-br'">
+                  </template>
                </div>
-               <div id="command_text-container" class="ui fluid labeled input">
-                  <label for="command_text" class="ui label">&gt;</label>
-                  <input type="text" id="command_text" autofocus>
+               <div id="command_input-container" class="ui fluid labeled input" v-pre>
+                  <label for="command_input" class="ui label">&gt;</label>
+                  <input type="text" id="command_input" autofocus>
                </div>
             </div>
             <div class="eight wide column">
@@ -93,24 +101,96 @@
       </div> <!-- end grid -->
    </div>
    <script>
-      eel.expose(js_random);
-      function js_random() {
-         return Math.random();
-      }
 
       addEventListener('mouseup', function(e) {
          setTimeout(() => {
             let act = document.activeElement;
             if ((act == null || act == document.body)
                && window.getSelection().type != 'Range') {
-               command_text.focus();
+               command_input.focus();
             }
          }, 1);
       });
 
-      (function() {
-         let hist = [];
-         let ind = 0;
+
+      eel.expose(set_connection);
+      function set_connection(connection) {
+         app.client.connection = connection;
+      }
+
+      eel.expose(set_device);
+      function set_device(device) {
+         app.client.device = device;
+      }
+
+      eel.expose(append);
+      function append(out_item, last_n) {
+         if (last_n == 0) {
+            app.client.out.push(out_item);
+         } else {
+            app.$set(app.client.out, app.client.out.length - last_n, out_item);
+         }
+      }
+
+      console.log('eel expose setup finished');
+      let app;
+
+      (async function() {
+         result_client = await eel.get_client()();
+         console.log('client', result_client);
+         app = new Vue({
+            el: '#app',
+            data: {
+               client: result_client,
+               auto_scroll: true,
+            },
+            computed: {
+               status_color() {
+                  let status = this.client.connection.status;
+                  return ({
+                     'offline': 'red',
+                     'online': 'yellow',
+                     'connected': 'green',
+                  })[status] || '';
+               },
+               status() {
+                  let status = this.client.connection.status;
+                  return status[0].toUpperCase() + status.slice(1);
+               }
+            },
+            methods: {
+               colorByType(type) {
+                  return ({
+                     '>': 'black',
+                     '$': 'blue',
+                     '#': 'teal',
+                  })[type] || '';
+               },
+            },
+            mounted: function() {
+               this.$watch('client.out', function() {
+                  // auto scroll or not
+                  if (this.auto_scroll) scroll_to_bottom();
+               }, { deep: true })
+            }
+         });
+         command_input_init()
+         console_out.onscroll = function(e) {
+            let end = this.scrollHeight - this.scrollTop === this.clientHeight;
+            app.auto_scroll = end;
+         };
+         scroll_to_bottom();
+      })();
+
+      function scroll_to_bottom() {
+         app.$nextTick(() => {
+            console_out.scrollTop = console_out.scrollHeight;
+         });
+      }
+
+      function command_input_init() {
+         let hist = app.client.in;
+         let ind = hist.length;
 
          eel.expose(set_hist);
          function set_hist(h) {
@@ -128,21 +208,21 @@
             ind += increment;
             if (ind < 0) ind = 0;
             if (ind > hist.length) ind = hist.length;
-            command_text.value = hist[ind] || '';
-            // let len = command_text.value.length;
-            // command_text.setSelectionRange(len, len);
+            command_input.value = hist[ind] || '';
+            // let len = command_input.value.length;
+            // command_input.setSelectionRange(len, len);
          }
 
-         command_text.onkeydown = function(e) {
+         command_input.onkeydown = function(e) {
             let f = ({
                'Enter': () => {
-                  let s = command_text.value;
-                  command_text.value = '';
+                  let s = this.value;
+                  this.value = '';
                   add_hist(s);
-                  eel.send_text(s);
+                  eel.send_line(s);
                },
                'Escape': () => {
-                  command_text.value = '';
+                  this.value = '';
                },
                'ArrowUp': () => {
                   view_hist(-1);
@@ -154,8 +234,10 @@
                },
             })[e.key];
             if (f) f();
-         }
-      })();
+         };
+
+         command_input.focus();
+      }
    </script>
 </body>
 
