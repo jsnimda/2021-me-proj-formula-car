@@ -245,17 +245,21 @@ def my_other_thread():
                     ser = None
             await asyncio.sleep(1.0)
 
+    # time.sleep(0.1)  # wait a little bit
+    print('async ready')
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(main())
     loop.close()
 
 
+eel.start('client.html', size=(1440, 900), block=False)
+
+print('eel ready')
+
 thread = threading.Thread(target=my_other_thread, daemon=True)
 thread.start()
 # NOTICE: threading.Thread may cause failed with KeyError
-
-eel.start('client.html', size=(1600, 900), block=False)
 
 # eel.spawn(my_other_thread)
 

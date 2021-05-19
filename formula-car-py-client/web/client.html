@@ -79,8 +79,10 @@
       <div class="ui divider"></div>
       <div class="ui grid" style="height: 788px">
          <div class="row">
-            <div class="eight wide column">
+            <div class="nine wide column">
                <!-- left bottom -->
+               <!-- in 1600x900 8:8 width = 766 -->
+               <!-- in 1440x900 9:7 width = 775 -->
                <h4 class="ui top attached header">Console</h4>
                <div id="console_out" class="ui bottom attached segment">
                   <template v-for="item in client.out">
@@ -94,7 +96,7 @@
                   <input type="text" id="command_input" autofocus>
                </div>
             </div>
-            <div class="eight wide column">
+            <div class="seven wide column">
                <!-- right bottom -->
             </div>
          </div>
