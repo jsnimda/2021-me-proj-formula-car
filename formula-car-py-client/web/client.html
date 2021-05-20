@@ -3,7 +3,7 @@
 
 <head>
    <meta charset='utf-8'>
-   <title>Page Title</title>
+   <title>esp32-js.local</title>
    <meta name='viewport' content='width=device-width, initial-scale=1'>
 
    <!-- #region libraries -->
@@ -88,7 +88,17 @@
                <!-- left bottom -->
                <!-- in 1600x900 8:8 width = 766 -->
                <!-- in 1440x900 9:7 width = 775 -->
-               <h4 class="ui top attached header">Console</h4>
+               <div class="ui top attached borderless menu">
+                  <div class="header item">Console</div>
+                  <div class="right menu">
+                     <!-- <div class="item">
+                        <div class="ui checkbox">
+                           <input type="checkbox" name="example">
+                           <label>Make my profile visible</label>
+                        </div>
+                     </div> -->
+                  </div>
+               </div>
                <div id="console_out" class="ui bottom attached segment" v-pre>
                   <!-- <span v-for="item in client.out" class="ui text" :class="[colorByType(item.type)]" :key="item.ind">
                      <code>{{item.time}} {{item.type}} {{item.line}}</code>
